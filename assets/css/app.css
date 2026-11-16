@@ -337,3 +337,18 @@ body.exam-mode .main{max-width:none;padding:0}
 @media (max-width:900px){.grid[style*="minmax(0,2fr)"]{grid-template-columns:1fr!important}}
 .topbug{background:transparent;color:#e6eef7;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:6px 10px;font-weight:600;font-size:.86rem;cursor:pointer;white-space:nowrap}
 .topbug:hover{background:rgba(255,255,255,.1);color:#fff}
+/* Pago de acceso */
+.kick .pay-card{text-align:left;padding:32px 34px}
+.pay-card .brand{color:var(--primary)}
+.pay-box{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;margin:20px 0 18px;padding:18px 20px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fbfcfe}
+.pay-amt{font-family:Georgia,serif;font-size:2.4rem;font-weight:700;color:var(--primary);line-height:1}
+.pay-amt small{font-size:.95rem;font-weight:600;color:var(--muted,#5b6b7c);font-family:inherit}
+.pay-list{margin:0;padding:0;list-style:none;font-size:.92rem}
+.pay-list li{position:relative;padding-left:22px;margin:4px 0}
+.pay-list li::before{content:"✓";position:absolute;left:0;top:0;color:var(--ok);font-weight:700}
+.pay-btn{width:100%;justify-content:center}
+@media (max-width:560px){.kick .pay-card{padding:24px 20px}.pay-box{grid-template-columns:1fr;gap:12px}.pay-amt{font-size:2rem}}
+.pay-card .brand-mark{background:var(--primary);color:#fff}
+.pay-card .brand-text b{color:var(--primary)}
+.pay-card .brand-text span{color:var(--muted);opacity:1}
+@media (max-width:560px){.kick{margin:5vh 12px}}

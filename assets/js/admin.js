@@ -1,9 +1,10 @@
 // Panel de administración
-import { api } from './api.js?v=1.1.3';
-import { state } from './state.js?v=1.1.3';
-import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, SUBAREAS, FORMATS, plainLetters, pct } from './ui.js?v=1.1.3';
+import { api } from './api.js?v=1.2.0';
+import { state } from './state.js?v=1.2.0';
+import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.2.0';
+import { CONFIG } from './config.js?v=1.2.0';
 
-const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
+const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['pagos', 'Pagos'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
 const USTATUS = { pending: ['Pendiente', 'warn'], approved: ['Aprobado', 'ok'], blocked: ['Bloqueado', 'bad'] };
 const BSTATUS = { nuevo: 'warn', revisando: '', resuelto: 'ok', descartado: 'gray' };
 
@@ -15,6 +16,7 @@ export async function adminView(root, tab = 'resumen') {
   try {
     if (tab === 'usuarios') await users(box);
     else if (tab === 'correos') await allowed(box);
+    else if (tab === 'pagos') await payments(box);
     else if (tab === 'equipos') await devices(box);
     else if (tab === 'reportes') await bugs(box);
     else if (tab === 'errores') await errors(box);
@@ -30,12 +32,13 @@ async function overview(box) {
     <a class="card stat" href="#/admin/usuarios" style="text-decoration:none"><div class="label">Solicitudes pendientes</div><div class="value" style="color:${o.pending ? 'var(--warn)' : 'inherit'}">${o.pending}</div><div class="sub">Revisar y aprobar</div></a>
     <div class="card stat"><div class="label">Activos (7 días)</div><div class="value">${o.active_7d}</div><div class="sub">${o.attempts} intentos concluidos en total</div></div>
     <a class="card stat" href="#/admin/reportes" style="text-decoration:none"><div class="label">Reportes abiertos</div><div class="value" style="color:${o.bugs_open ? 'var(--bad)' : 'inherit'}">${o.bugs_open}</div><div class="sub">${o.errors_24h} errores técnicos en 24 h</div></a></div>
+    ${o.payments_enabled || o.paid_count ? `<a class="notice ${o.payments_enabled ? 'ok' : 'info'}" href="#/admin/pagos" style="display:block;margin-top:16px;text-decoration:none;color:inherit"><b>${o.payments_enabled ? 'Cobro de acceso activo.' : 'Cobro de acceso desactivado.'}</b> ${o.paid_count} ${o.paid_count === 1 ? 'pago aprobado' : 'pagos aprobados'} por ${money(o.paid_total)}${o.paid_7d ? ` · ${o.paid_7d} en los últimos 7 días` : ''}. <u>Ver pagos</u></a>` : ''}
     ${o.device_alerts ? `<div class="notice warn" style="margin-top:16px"><b>${o.device_alerts} ${o.device_alerts === 1 ? 'aviso' : 'avisos'} de cuentas en equipos ajenos.</b> Alguien intentó usar otra cuenta en un equipo ya registrado. <a href="#/admin/equipos">Revisar</a></div>` : ''}
     <div class="grid g2" style="margin-top:16px"><div class="card"><div class="card-head"><h3>Banco de reactivos activos</h3><b>${o.bank_total}</b></div>
       ${Object.keys(SUBAREAS).map(k => { const n = o.bank?.[k] || 0; return `<div class="subarea-row"><span class="code">${k}</span><div><div class="name">${esc(SUBAREAS[k].name)}</div><div class="bar ${n >= 15 ? 'ok' : 'bad'}"><i style="width:${Math.min(100, pct(n, 60))}%"></i></div></div><span class="pct">${n}</span></div>`; }).join('')}
       ${o.bank_total === 0 ? '<div class="notice warn" style="margin-top:10px">El banco está vacío. Ve a <a href="#/admin/contenido">Contenido</a> e importa el archivo <b>contenido_simulador.json</b>.</div>' : ''}</div>
       <div class="card"><h3>Fichas de estudio</h3><p><b>${o.docs}</b> fichas cargadas.</p>
-      <h3 style="margin-top:16px">Cómo dar acceso</h3><ol class="small" style="padding-left:18px;line-height:1.7"><li>Con la <b>aprobación automática</b> activada (en <a href="#/admin/correos">Acceso</a>), basta con compartir el enlace: quien entre con su cuenta de Google queda aprobado.</li><li>Si la desactivas, solo entran directo los correos autorizados y los demás quedan <b>pendientes</b> en Usuarios.</li><li>Cada cuenta funciona en un solo dispositivo a la vez; en Usuarios puedes ver cuántas veces cambió de equipo.</li></ol></div></div>`;
+      <h3 style="margin-top:16px">Cómo dar acceso</h3><ol class="small" style="padding-left:18px;line-height:1.7"><li>Con el <b>cobro de acceso</b> activado (en <a href="#/admin/pagos">Pagos</a>), quien entre por primera vez ve la pantalla de pago y su cuenta se aprueba sola al pagar.</li><li>Sin cobro, con la <b>aprobación automática</b> activada (en <a href="#/admin/correos">Acceso</a>), basta con compartir el enlace: quien entre con su cuenta de Google queda aprobado.</li><li>Si la desactivas, solo entran directo los correos autorizados y los demás quedan <b>pendientes</b> en Usuarios.</li><li>Cada cuenta funciona en un solo dispositivo a la vez; en Usuarios puedes ver cuántas veces cambió de equipo.</li></ol></div></div>`;
 }
 
 async function users(box) {
@@ -79,7 +82,7 @@ async function users(box) {
 async function allowed(box) {
   const [list, cfg] = await Promise.all([api.admin.allowed(), api.admin.getSettings()]);
   const auto = !!cfg?.auto_approve;
-  box.innerHTML = `<div class="card pad-lg" style="margin-bottom:16px"><div class="row between" style="align-items:flex-start;gap:16px">
+  box.innerHTML = `${cfg?.payments_enabled ? `<div class="notice ok" style="margin-bottom:16px"><b>El cobro de acceso está activo.</b> Las cuentas nuevas pagan ${money(cfg.price)} para entrar y la aprobación automática no se aplica. Los correos autorizados de esta página entran sin pagar. <a href="#/admin/pagos">Ir a Pagos</a></div>` : ''}<div class="card pad-lg" style="margin-bottom:16px"><div class="row between" style="align-items:flex-start;gap:16px">
       <div><h3 style="margin-top:0">Aprobación automática</h3>
       <p class="small muted" style="margin:4px 0 0">${auto ? '<b>Activada.</b> Cualquier persona a la que le compartas el enlace y entre con su cuenta de Google queda aprobada sola.' : '<b>Desactivada.</b> Solo entran directo los correos autorizados; los demás quedan pendientes hasta que los apruebes en Usuarios.'}</p>
       <p class="small muted" style="margin:6px 0 0">Siempre puedes bloquear a alguien en Usuarios. Si el enlace circula de más, desactívala.</p></div>
@@ -228,4 +231,77 @@ async function devices(box) {
     <div class="tabs" id="dt"><button class="on" data-f="open">Pendientes (${list.filter(c => !c.resolved).length})</button><button data-f="all">Todos (${list.length})</button></div><div id="dl"></div>`;
   box.querySelectorAll('#dt button').forEach(b => b.onclick = () => { box.querySelectorAll('#dt button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(b.dataset.f); });
   render('open');
+}
+
+// ---------- Pagos (Mercado Pago) ----------
+let lastCheck = null;
+const DETAIL = { waiting_payment: 'Esperando pago en efectivo', waiting_transfer: 'Esperando transferencia', in_process: 'En revisión', pending_review_manual: 'En revisión de Mercado Pago', waiting_capture: 'Autorizado, sin capturar', rejected_by_issuer: 'Rechazado por el banco', high_risk: 'Rechazado por seguridad', card_insufficient_amount: 'Fondos insuficientes', bad_filled_card_data: 'Datos de tarjeta incorrectos', amount_limit_exceeded: 'Excede el límite de la tarjeta', required_call_for_authorize: 'Requiere autorizar con el banco', card_disabled: 'Tarjeta deshabilitada', max_attempts_exceeded: 'Demasiados intentos', processing_error: 'Error al procesar', refunded: 'Reembolsado', partially_refunded: 'Reembolso parcial', charged_back: 'Contracargo', expired: 'Vencido', canceled: 'Cancelado' };
+async function payments(box) {
+  const [cfg, list] = await Promise.all([api.admin.getSettings(), api.admin.payments()]);
+  const on = !!cfg.payments_enabled;
+  const real = list.filter(p => p.live !== false);
+  const ok = real.filter(p => payLabel(p)[1] === 'ok');
+  const tests = list.length - real.length;
+  const checkHTML = (c) => {
+    if (!c) return '<p class="small muted" style="margin:0">Pulsa <b>Probar conexión</b> para revisar que la llave de Mercado Pago funcione.</p>';
+    if (c.error) return `<div class="notice bad small">${esc(c.error)}</div>`;
+    return `<div class="row wrap" style="gap:6px;margin-bottom:8px">${c.ok ? `<span class="chip ok">Conectado</span>${c.test ? '<span class="chip warn">Modo de prueba</span>' : '<span class="chip ok">Modo real</span>'}` : '<span class="chip bad">Sin conexión</span>'}${c.site && c.site !== 'MLM' ? `<span class="chip bad">Cuenta de otro país (${esc(c.site)})</span>` : ''}${c.webhook_secret ? '<span class="chip ok">Firma del aviso configurada</span>' : '<span class="chip warn">Falta la firma del aviso</span>'}</div>
+      <p class="small muted" style="margin:0">${c.ok ? (c.test ? 'Los pagos son simulados con tarjetas de prueba; no se cobra dinero real. Para cobrar de verdad, cambia en Supabase la llave por la de producción.' : 'Los pagos son reales y el dinero llega a tu cuenta de Mercado Pago.') : 'La llave guardada en Supabase no funciona: ' + esc(c.detail || 'revisa que sea el Access Token correcto') + '.'}${c.webhook_secret ? '' : ' Sin la firma, los avisos se aceptan solo después de consultar el pago directamente en Mercado Pago.'}</p>`;
+  };
+  box.innerHTML = `<div class="grid g2">
+    <div class="card pad-lg"><div class="row between" style="align-items:flex-start;gap:16px">
+      <div><h3 style="margin-top:0">Cobro de acceso</h3>
+      <p class="small muted" style="margin:4px 0 0">${on ? `<b>Activado.</b> Las cuentas nuevas ven la pantalla de pago y se aprueban solas al pagar ${money(cfg.price)}.` : '<b>Desactivado.</b> Nadie ve la pantalla de pago; el acceso funciona como en la pestaña Acceso.'}</p>
+      <p class="small muted" style="margin:6px 0 0">Quienes ya tienen acceso no se ven afectados. Los correos autorizados entran sin pagar.</p></div>
+      <label class="check" style="flex:none;margin:0"><input type="checkbox" id="pon" ${on ? 'checked' : ''}><div><b>${on ? 'Activado' : 'Desactivado'}</b></div></label></div>
+      <div class="divider"></div>
+      <label class="field" style="max-width:220px"><span>Precio del acceso (MXN)</span><input type="number" id="price" min="10" max="10000" step="1" value="${Number(cfg.price)}"></label>
+      <button class="btn" id="psave">Guardar precio</button></div>
+    <div class="card pad-lg"><h3 style="margin-top:0">Conexión con Mercado Pago</h3>
+      <div id="chk">${checkHTML(lastCheck)}</div>
+      <div class="row wrap" style="margin-top:12px"><button class="btn" id="ptest">Probar conexión</button><button class="btn" id="ppay">Hacer un pago de prueba</button></div>
+      <div class="divider"></div>
+      <p class="small" style="margin:0 0 6px"><b>Dirección para el aviso de pagos (webhook)</b></p>
+      <div class="row" style="gap:6px"><input type="text" id="wh" readonly value="${esc(CONFIG.webhookUrl)}" style="font-size:.82rem"><button class="btn sm" id="whc">Copiar</button></div>
+      <p class="small muted" style="margin:6px 0 0">Va en Mercado Pago → tu aplicación → Configuración de webhooks, con el evento <b>Order (Mercado Pago)</b>.</p></div></div>
+    <div class="grid g4" style="margin-top:16px">
+      <div class="card stat"><div class="label">Pagos aprobados</div><div class="value">${ok.length}</div><div class="sub">Pagos reales</div></div>
+      <div class="card stat"><div class="label">Ingresos</div><div class="value">${money(ok.reduce((a, p) => a + Number(p.amount), 0))}</div><div class="sub">Antes de comisiones e impuestos</div></div>
+      <div class="card stat"><div class="label">En proceso</div><div class="value">${real.filter(p => payLabel(p)[0] === 'En proceso').length}</div><div class="sub">Por ejemplo, efectivo sin pagar</div></div>
+      <div class="card stat"><div class="label">Pagos de prueba</div><div class="value">${tests}</div><div class="sub">No son dinero real</div></div></div>
+    <div class="card" style="margin-top:16px"><div class="card-head"><h3>Historial de pagos</h3><span class="chip">${list.length}</span></div>
+      <p class="small muted">Para hacer un reembolso, entra a tu cuenta de Mercado Pago, busca el pago en Actividad y elige Devolver dinero. Al registrarse el reembolso, la cuenta de esa persona vuelve a quedar pendiente.</p>
+      ${list.length ? `<div class="table-wrap"><table class="t"><tr><th>Fecha</th><th>Usuario</th><th>Monto</th><th>Estado</th><th>Forma de pago</th><th>Tipo</th></tr>${list.map(p => { const [l, c] = payLabel(p); return `<tr><td class="small">${fmtDate(p.created_at, true)}${p.paid_at ? `<br><span class="faint">Pagado: ${fmtDate(p.paid_at, true)}</span>` : ''}</td>
+        <td><b>${esc(p.full_name || '(sin nombre)')}</b><br><span class="small muted">${esc(p.email || '')}</span></td>
+        <td>${money(p.amount)}</td><td><span class="chip ${c}">${l}</span>${p.status_detail && !['accredited', 'created'].includes(p.status_detail) ? `<br><span class="small faint">${esc(DETAIL[p.status_detail] || p.status_detail)}</span>` : ''}</td>
+        <td class="small">${esc(payMethod(p.payment_method))}</td><td>${p.live === false ? '<span class="chip warn">Prueba</span>' : '<span class="chip">Real</span>'}<br><span class="small faint">${esc(p.order_id)}</span></td></tr>`; }).join('')}</table></div>` : '<div class="empty">Todavía no hay pagos.</div>'}</div>`;
+  const reload = () => adminView(box.parentElement, 'pagos');
+  box.querySelector('#whc').onclick = async () => { try { await navigator.clipboard.writeText(CONFIG.webhookUrl); toast('Dirección copiada.', 'ok'); } catch (e) { box.querySelector('#wh').select(); toast('Selecciona y copia la dirección.', 'warn'); } };
+  box.querySelector('#psave').onclick = async () => {
+    const v = Number(box.querySelector('#price').value);
+    try { await api.admin.setPayments(on, v); toast('Precio guardado: ' + money(v) + '.', 'ok'); reload(); } catch (e) { toast(errMsg(e), 'bad'); }
+  };
+  box.querySelector('#pon').onchange = async (e) => {
+    const want = e.target.checked;
+    const v = Number(box.querySelector('#price').value) || Number(cfg.price);
+    const msg = want
+      ? `Las cuentas nuevas y las pendientes tendrán que pagar ${money(v)} para entrar. Quienes ya tienen acceso no se ven afectados.${lastCheck?.test ? ' Atención: la conexión está en modo de prueba, así que los pagos no serán reales.' : ''}`
+      : 'Nadie verá la pantalla de pago. Las cuentas nuevas se aprobarán según la pestaña Acceso.';
+    if (!await confirmDialog(want ? 'Activar cobro de acceso' : 'Desactivar cobro de acceso', msg, want ? 'Activar' : 'Desactivar', want ? 'primary' : 'danger')) { e.target.checked = !want; return; }
+    try { await api.admin.setPayments(want, v); toast(want ? 'Cobro de acceso activado.' : 'Cobro de acceso desactivado.', 'ok'); reload(); }
+    catch (err) { e.target.checked = !want; toast(errMsg(err), 'bad'); }
+  };
+  box.querySelector('#ptest').onclick = async (e) => {
+    e.target.disabled = true; box.querySelector('#chk').innerHTML = loadingHTML('Revisando…');
+    try { lastCheck = await api.admin.payCheck(); }
+    catch (err) { lastCheck = { error: errCode(err) === 'MP_NOT_CONFIGURED' ? 'Falta guardar la llave MP_ACCESS_TOKEN en Supabase.' : errMsg(err) + (err.detail ? ' · ' + err.detail : '') }; }
+    box.querySelector('#chk').innerHTML = checkHTML(lastCheck); e.target.disabled = false;
+  };
+  box.querySelector('#ppay').onclick = async (e) => {
+    const test = lastCheck?.test;
+    if (!await confirmDialog('Hacer un pago de prueba', `Se abrirá Mercado Pago con el precio actual (${money(cfg.price)}). ${test === false ? 'La conexión está en modo real: se te cobrará de verdad. Puedes devolverte el dinero desde Mercado Pago.' : 'En modo de prueba usa una tarjeta de prueba de Mercado Pago; no se cobra dinero real.'} Al terminar volverás a esta pestaña.`, 'Continuar')) return;
+    e.target.disabled = true; e.target.textContent = 'Abriendo…';
+    try { const r = await api.payCreate(); location.href = r.checkout_url; }
+    catch (err) { e.target.disabled = false; e.target.textContent = 'Hacer un pago de prueba'; toast(errMsg(err) + (err.detail ? ' · ' + err.detail : ''), 'bad'); }
+  };
 }

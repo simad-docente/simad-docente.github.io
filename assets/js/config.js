@@ -10,5 +10,7 @@ export const CONFIG = {
   shortTotal: 30,
   maxIncidents: 3,
   heartbeatMs: 45000,
-  version: '1.1.3'
+  contactEmail: 'joseloploe27@gmail.com',
+  webhookUrl: 'https://qoctovzzguzrdwcwuofm.supabase.co/functions/v1/mp-webhook',
+  version: '1.2.0'
 };

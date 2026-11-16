@@ -127,8 +127,36 @@ const ERRORS = {
   FORBIDDEN: 'No tienes permiso para realizar esta acción.',
   RATE_LIMIT: 'Has enviado muchos reportes en poco tiempo. Intenta más tarde.',
   CANNOT_CHANGE_SELF: 'No puedes cambiar tu propio estado o rol.',
-  NO_AUTH: 'Tu sesión expiró. Vuelve a iniciar sesión.'
+  NO_AUTH: 'Tu sesión expiró. Vuelve a iniciar sesión.',
+  PAYMENTS_OFF: 'El pago en línea no está disponible en este momento. Comunícate con el administrador.',
+  ALREADY_ACTIVE: 'Tu acceso ya está activo. Vuelve a cargar la página.',
+  MP_NOT_CONFIGURED: 'El cobro con Mercado Pago aún no está configurado.',
+  MP_ERROR: 'No se pudo abrir el pago con Mercado Pago. Intenta de nuevo en unos minutos.',
+  BAD_PRICE: 'Escribe un precio entre $10 y $10,000.',
+  BLOCKED: 'Tu cuenta está desactivada.'
 };
+// Pagos
+export function money(n) {
+  const v = Number(n || 0);
+  return '$' + v.toLocaleString('es-MX', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
+}
+export function payLabel(p) {
+  const s = p?.status, d = p?.status_detail;
+  if (s === 'processed' && (d === 'accredited' || d === 'partially_refunded')) return ['Aprobado', 'ok'];
+  if (s === 'refunded' || d === 'refunded') return ['Reembolsado', 'gray'];
+  if (s === 'charged_back' || d === 'charged_back') return ['Contracargo', 'bad'];
+  if (s === 'failed') return ['Rechazado', 'bad'];
+  if (s === 'canceled' || s === 'expired') return ['Cancelado', 'gray'];
+  if (s === 'action_required' || s === 'processing') return ['En proceso', 'warn'];
+  return ['Iniciado (sin pagar)', 'gray'];
+}
+export function payMethod(m) {
+  if (!m) return '—';
+  const k = String(m).toLowerCase();
+  const map = { oxxo: 'Efectivo (OXXO)', paycash: 'Efectivo en tiendas', account_money: 'Saldo Mercado Pago', debvisa: 'Tarjeta de débito', debmaster: 'Tarjeta de débito', visa: 'Tarjeta', master: 'Tarjeta', amex: 'American Express', bank_transfer: 'Transferencia', spei: 'Transferencia SPEI', consumer_credits: 'Mercado Crédito' };
+  return map[k] || m;
+}
+
 export function errCode(e) {
   const m = String(e?.message || e || '');
   for (const k of Object.keys(ERRORS)) if (m.includes(k)) return k;

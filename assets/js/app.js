@@ -1,12 +1,12 @@
 // Arranque, autenticación, sesión de un solo dispositivo, navegación y reportes
-import { api } from './api.js?v=1.1.3';
-import { state, nav } from './state.js?v=1.1.3';
-import { CONFIG } from './config.js?v=1.1.3';
-import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate } from './ui.js?v=1.1.3';
-import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.1.3';
-import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.1.3';
-import { adminView } from './admin.js?v=1.1.3';
-import { deviceKey, fingerprints } from './device.js?v=1.1.3';
+import { api } from './api.js?v=1.2.0';
+import { state, nav } from './state.js?v=1.2.0';
+import { CONFIG } from './config.js?v=1.2.0';
+import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.2.0';
+import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.2.0';
+import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.2.0';
+import { adminView } from './admin.js?v=1.2.0';
+import { deviceKey, fingerprints } from './device.js?v=1.2.0';
 
 const app = document.getElementById('app');
 const SID_KEY = 'simad_sid';
@@ -140,6 +140,120 @@ function statusPage(kind) {
   };
 }
 
+// ---------- Pago de acceso (Mercado Pago) ----------
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const PAY_NOTICE = {
+  ok: ['info', 'Mercado Pago está terminando de confirmar tu pago. En cuanto se confirme, tu acceso se activa solo. Si en unos minutos no entras, pulsa <b>Ya pagué, verificar</b>.'],
+  pendiente: ['warn', 'Tu pago quedó <b>pendiente</b>. Si elegiste pagar en efectivo, completa el pago con la referencia que te dio Mercado Pago. Tu acceso se activará solo cuando se confirme; puedes cerrar esta página.'],
+  error: ['bad', 'El pago <b>no se completó</b>. Puedes intentarlo de nuevo con otra tarjeta o con otra forma de pago.'],
+  proceso: ['warn', 'Tienes un pago <b>en proceso</b>. Tu acceso se activará solo cuando Mercado Pago lo confirme.'],
+  rechazado: ['bad', 'Tu último intento de pago fue <b>rechazado</b>. Puedes intentarlo de nuevo con otra tarjeta o con otra forma de pago.']
+};
+
+async function pendingPage(notice = null) {
+  let cfg = null;
+  try { cfg = await api.paymentConfig(); } catch (e) { }
+  if (cfg?.enabled) { await payPage(cfg, notice); return; }
+  statusPage('pending');
+}
+
+async function payPage(cfg, notice = null) {
+  const p = state.profile || {};
+  let last = null;
+  try { last = (await api.myPayments(state.user.id))?.[0] || null; } catch (e) { }
+  if (!notice && last) {
+    const [lbl] = payLabel(last);
+    if (lbl === 'En proceso') notice = 'proceso';
+    else if (lbl === 'Rechazado' && Date.now() - new Date(last.updated_at || last.created_at).getTime() < 3 * 864e5) notice = 'rechazado';
+  }
+  const first = (p.full_name || '').split(' ')[0];
+  const price = money(cfg.price);
+  const n = notice && PAY_NOTICE[notice];
+  const mail = esc(CONFIG.contactEmail);
+  app.innerHTML = `<div class="kick" style="max-width:660px"><div class="card pay-card">
+    <div class="brand" style="margin-bottom:18px"><div class="brand-mark">S</div><div class="brand-text"><b>${esc(CONFIG.appShort)}</b><span>Admisión · Primaria</span></div></div>
+    <h2 style="margin:0 0 6px">Activa tu acceso al simulador</h2>
+    <p class="muted" style="margin:0">${first ? `Hola, ${esc(first)}. ` : ''}Tu cuenta ya está creada. Para empezar a usar el simulador solo falta un pago único.</p>
+    ${n ? `<div class="notice ${n[0]} small" style="margin:16px 0 0">${n[1]}</div>` : ''}
+    <div class="pay-box">
+      <div><div class="pay-amt">${price} <small>MXN</small></div><div class="small muted">Pago único · acceso sin fecha de vencimiento</div></div>
+      <ul class="pay-list">
+        <li>Simulacros de 90 reactivos en 4 horas con navegador seguro</li>
+        <li>Práctica por subárea con la argumentación de cada respuesta</li>
+        <li>Fichas de estudio de la bibliografía oficial</li>
+        <li>Calendario, historial y repaso de tus errores</li>
+      </ul>
+    </div>
+    <button class="btn primary lg pay-btn" id="pay"><span>Pagar ${price} con Mercado Pago</span></button>
+    <p class="small muted" style="margin:10px 0 0;text-align:center">Mercado Pago te mostrará las formas de pago disponibles, como tarjeta de débito o crédito, saldo en Mercado Pago o efectivo en tiendas. Tus datos de pago los recibe Mercado Pago, no este sitio.</p>
+    <div class="keybox small" style="margin:18px 0 14px"><b>Cuenta:</b> ${esc(p.email || state.user?.email || '')}<br><b>Folio de práctica:</b> ${esc(p.folio || '')}</div>
+    <div class="row wrap"><button class="btn" id="re">Ya pagué, verificar</button><button class="btn ghost" id="out">Cerrar sesión</button></div>
+    <p class="small faint" style="margin:16px 0 0">Al pagar aceptas las <a href="privacidad.html#pagos" target="_blank" rel="noopener">condiciones de pago</a>. Para dudas o reembolsos escribe a <a href="mailto:${mail}">${mail}</a> desde el correo de tu cuenta.</p>
+    <details style="margin-top:14px"><summary class="small faint" style="cursor:pointer">Soy el administrador</summary>
+      <div class="row" style="margin-top:10px"><input type="text" id="code" placeholder="Código de administrador" autocomplete="off" style="max-width:260px"><button class="btn" id="claim">Activar</button></div></details>
+  </div></div>`;
+  document.getElementById('out').onclick = logout;
+  const pay = document.getElementById('pay');
+  pay.onclick = async () => {
+    pay.disabled = true; pay.innerHTML = '<span>Abriendo Mercado Pago…</span>';
+    try {
+      const r = await api.payCreate();
+      if (!r?.checkout_url) throw new Error('MP_ERROR');
+      location.href = r.checkout_url;
+    } catch (e) {
+      pay.disabled = false; pay.innerHTML = `<span>Pagar ${price} con Mercado Pago</span>`;
+      if (errCode(e) === 'ALREADY_ACTIVE') { boot(); return; }
+      toast(errMsg(e), 'bad');
+    }
+  };
+  const re = document.getElementById('re');
+  re.onclick = async () => {
+    re.disabled = true; re.textContent = 'Verificando…';
+    try {
+      const r = await api.paySync();
+      if (r?.status === 'approved') { toast('¡Pago confirmado! Tu acceso ya está activo.', 'ok'); boot(); return; }
+      const st = (r?.orders || [])[0];
+      toast(st && ['processing', 'action_required'].includes(st.status) ? 'Tu pago sigue en proceso. Se activará solo cuando Mercado Pago lo confirme.' : 'Todavía no encontramos un pago aprobado en tu cuenta.', 'warn');
+    } catch (e) { toast(errMsg(e), 'bad'); }
+    re.disabled = false; re.textContent = 'Ya pagué, verificar';
+  };
+  const cl = document.getElementById('claim');
+  cl.onclick = async () => {
+    const code = document.getElementById('code').value.trim(); if (!code) return;
+    cl.disabled = true;
+    try { const ok = await api.claimAdmin(code); if (ok) { toast('Rol de administrador activado.', 'ok'); boot(); } else { cl.disabled = false; toast('Código incorrecto.', 'bad'); } }
+    catch (e) { cl.disabled = false; toast(errMsg(e), 'bad'); }
+  };
+}
+
+// Regreso desde Mercado Pago (?pago=ok|pendiente|error)
+async function handlePayReturn(kind) {
+  app.innerHTML = loadingHTML(kind === 'error' ? 'Revisando tu pago…' : 'Confirmando tu pago con Mercado Pago…');
+  let res = null;
+  for (let i = 0; i < 5; i++) {
+    try { res = await api.paySync(); } catch (e) { res = null; }
+    if (res?.status === 'approved' && !state.isAdmin) break;
+    const open = (res?.orders || []).some(o => ['processing', 'action_required', 'created'].includes(o.status));
+    if (kind !== 'ok' || !open) break;
+    await sleep(2500);
+  }
+  try { state.profile = await api.getProfile(state.user.id) || state.profile; } catch (e) { }
+  const st = state.profile?.status;
+  if (state.isAdmin) {
+    const o = (res?.orders || [])[0];
+    const lb = o ? payLabel({ status: o.status, status_detail: o.detail }) : null;
+    toast(lb ? `Pago de prueba: ${lb[0]}.` : 'Regresaste de Mercado Pago. Revisa el estado en Pagos.', lb && lb[1] === 'ok' ? 'ok' : 'warn');
+    history.replaceState(null, '', location.pathname + '#/admin/pagos');
+    lastPath = null; shell(); route(); return;
+  }
+  if (st === 'blocked') { statusPage('blocked'); return; }
+  if (st === 'approved') {
+    toast('¡Pago confirmado! Tu acceso ya está activo.', 'ok');
+    lastPath = null; shell(); route(); return;
+  }
+  await pendingPage(kind === 'ok' || kind === 'pendiente' || kind === 'error' ? kind : null);
+}
+
 function deviceConflictPage(hint) {
   stopGuard();
   app.innerHTML = `<div class="kick" style="max-width:600px"><div class="card" style="text-align:left">
@@ -262,11 +376,17 @@ window.addEventListener('beforeunload', (e) => { stopStudyTimer(); if (state.inE
 
 // ---------- Arranque ----------
 let authUnsub = null;
+let payReturn = null;
 async function boot() {
   stopGuard();
   app.innerHTML = loadingHTML('Iniciando…');
   // Errores devueltos por Google o Supabase en la URL
   const url = new URL(location.href);
+  // Regreso desde Mercado Pago: se guarda el resultado y se limpian los parámetros que agrega
+  if (url.searchParams.has('pago')) {
+    payReturn = url.searchParams.get('pago');
+    history.replaceState(null, '', location.pathname + (location.hash || ''));
+  }
   const urlErr = url.searchParams.get('error_description') || new URLSearchParams(location.hash.replace(/^#/, '')).get('error_description');
   let session = null;
   try { session = await api.getSession(); }
@@ -312,8 +432,9 @@ async function boot() {
   state.isAdmin = state.profile.role === 'admin';
   kickedOnce = false;
   startGuard();
+  if (payReturn) { const k = payReturn; payReturn = null; await handlePayReturn(k); return; }
   if (state.profile.status === 'blocked') { statusPage('blocked'); return; }
-  if (state.profile.status !== 'approved') { statusPage('pending'); return; }
+  if (state.profile.status !== 'approved') { await pendingPage(); return; }
   lastPath = null;
   shell();
   route();

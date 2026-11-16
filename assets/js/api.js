@@ -1,5 +1,5 @@
 // Capa de acceso a datos (Supabase). Toda la lógica sensible se valida en el servidor.
-import { CONFIG } from './config.js?v=1.1.3';
+import { CONFIG } from './config.js?v=1.2.0';
 
 let sb = null;
 function client() {
@@ -20,6 +20,18 @@ async function rpc(name, args = {}) {
 async function q(promise) {
   const { data, error } = await promise;
   if (error) throw new Error(error.message || String(error));
+  return data;
+}
+// Funciones del servidor (Edge Functions): el error trae un código propio, por ejemplo MP_ERROR
+async function fn(name, body) {
+  const { data, error } = await client().functions.invoke(name, { body });
+  if (error) {
+    let info = null;
+    try { info = await error.context?.json?.(); } catch (e) { }
+    const err = new Error(info?.error || error.message || 'Error del servidor');
+    err.detail = info?.detail || null; err.http = info?.http || null;
+    throw err;
+  }
   return data;
 }
 
@@ -72,6 +84,12 @@ const realApi = {
     ? q(client().from('study_progress').upsert({ user_id: uid, doc_id: doc, status, updated_at: new Date().toISOString() }))
     : q(client().from('study_progress').delete().eq('user_id', uid).eq('doc_id', doc)),
 
+  // Pago de acceso (Mercado Pago)
+  paymentConfig: () => rpc('payment_config'),
+  payCreate: () => fn('mp-checkout', { action: 'create' }),
+  paySync: () => fn('mp-checkout', { action: 'sync' }),
+  myPayments: (uid) => q(client().from('payments').select('order_id,amount,status,status_detail,payment_method,live,created_at,updated_at,paid_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(10)),
+
   // Reportes
   reportBug: (uid, r) => q(client().from('bug_reports').insert({ user_id: uid, category: r.category, description: r.description, page: r.page, context: r.context })),
   myBugs: (uid) => q(client().from('bug_reports').select('id,category,description,status,admin_note,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(30)),
@@ -97,6 +115,9 @@ const realApi = {
     deviceAction: (id, action) => rpc('admin_device_action', { p_conflict: id, p_action: action }),
     getSettings: () => rpc('admin_get_settings'),
     setAutoApprove: (on) => rpc('admin_set_auto_approve', { p_on: !!on }),
+    payments: () => rpc('admin_payments'),
+    setPayments: (on, price) => rpc('admin_set_payments', { p_on: !!on, p_price: Number(price) }),
+    payCheck: () => fn('mp-checkout', { action: 'check' }),
     sessionEvents: (uid) => q(client().from('session_events').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(20))
   }
 };
