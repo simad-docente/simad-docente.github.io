@@ -1,9 +1,9 @@
 // Motor de examen (simulacro), práctica y resultados
-import { api } from './api.js?v=1.2.2';
-import { state, nav } from './state.js?v=1.2.2';
-import { CONFIG } from './config.js?v=1.2.2';
-import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.2.2';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.2.2';
+import { api } from './api.js?v=1.3.0';
+import { state, nav } from './state.js?v=1.3.0';
+import { CONFIG } from './config.js?v=1.3.0';
+import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.3.0';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.3.0';
 
 // ---------- Render de un reactivo ----------
 export function questionHTML(it, { chosen = null, result = null, disabled = false } = {}) {

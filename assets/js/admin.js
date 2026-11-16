@@ -1,8 +1,8 @@
 // Panel de administración
-import { api } from './api.js?v=1.2.2';
-import { state } from './state.js?v=1.2.2';
-import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.2.2';
-import { CONFIG } from './config.js?v=1.2.2';
+import { api } from './api.js?v=1.3.0';
+import { state } from './state.js?v=1.3.0';
+import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.3.0';
+import { CONFIG } from './config.js?v=1.3.0';
 
 const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['pagos', 'Pagos'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
 const USTATUS = { pending: ['Pendiente', 'warn'], approved: ['Aprobado', 'ok'], blocked: ['Bloqueado', 'bad'] };
@@ -33,12 +33,13 @@ async function overview(box) {
     <div class="card stat"><div class="label">Activos (7 días)</div><div class="value">${o.active_7d}</div><div class="sub">${o.attempts} intentos concluidos en total</div></div>
     <a class="card stat" href="#/admin/reportes" style="text-decoration:none"><div class="label">Reportes abiertos</div><div class="value" style="color:${o.bugs_open ? 'var(--bad)' : 'inherit'}">${o.bugs_open}</div><div class="sub">${o.errors_24h} errores técnicos en 24 h</div></a></div>
     ${o.payments_enabled || o.paid_count ? `<a class="notice ${o.payments_enabled ? 'ok' : 'info'}" href="#/admin/pagos" style="display:block;margin-top:16px;text-decoration:none;color:inherit"><b>${o.payments_enabled ? 'Cobro de acceso activo.' : 'Cobro de acceso desactivado.'}</b> ${o.paid_count} ${o.paid_count === 1 ? 'pago aprobado' : 'pagos aprobados'} por ${money(o.paid_total)}${o.paid_7d ? ` · ${o.paid_7d} en los últimos 7 días` : ''}. <u>Ver pagos</u></a>` : ''}
+    ${o.bind_alerts ? `<div class="notice warn" style="margin-top:16px"><b>${o.bind_alerts} ${o.bind_alerts === 1 ? 'cuenta intentó' : 'cuentas intentaron'} entrar desde otro dispositivo.</b> Si la persona cambió de celular o computadora, libera su cuenta. <a href="#/admin/equipos">Revisar</a></div>` : ''}
     ${o.device_alerts ? `<div class="notice warn" style="margin-top:16px"><b>${o.device_alerts} ${o.device_alerts === 1 ? 'aviso' : 'avisos'} de cuentas en equipos ajenos.</b> Alguien intentó usar otra cuenta en un equipo ya registrado. <a href="#/admin/equipos">Revisar</a></div>` : ''}
     <div class="grid g2" style="margin-top:16px"><div class="card"><div class="card-head"><h3>Banco de reactivos activos</h3><b>${o.bank_total}</b></div>
       ${Object.keys(SUBAREAS).map(k => { const n = o.bank?.[k] || 0; return `<div class="subarea-row"><span class="code">${k}</span><div><div class="name">${esc(SUBAREAS[k].name)}</div><div class="bar ${n >= 15 ? 'ok' : 'bad'}"><i style="width:${Math.min(100, pct(n, 60))}%"></i></div></div><span class="pct">${n}</span></div>`; }).join('')}
       ${o.bank_total === 0 ? '<div class="notice warn" style="margin-top:10px">El banco está vacío. Ve a <a href="#/admin/contenido">Contenido</a> e importa el archivo <b>contenido_simulador.json</b>.</div>' : ''}</div>
       <div class="card"><h3>Fichas de estudio</h3><p><b>${o.docs}</b> fichas cargadas.</p>
-      <h3 style="margin-top:16px">Cómo dar acceso</h3><ol class="small" style="padding-left:18px;line-height:1.7"><li>Con el <b>cobro de acceso</b> activado (en <a href="#/admin/pagos">Pagos</a>), quien entre por primera vez ve la pantalla de pago y su cuenta se aprueba sola al pagar.</li><li>Sin cobro, con la <b>aprobación automática</b> activada (en <a href="#/admin/correos">Acceso</a>), basta con compartir el enlace: quien entre con su cuenta de Google queda aprobado.</li><li>Si la desactivas, solo entran directo los correos autorizados y los demás quedan <b>pendientes</b> en Usuarios.</li><li>Cada cuenta funciona en un solo dispositivo a la vez; en Usuarios puedes ver cuántas veces cambió de equipo.</li></ol></div></div>`;
+      <h3 style="margin-top:16px">Cómo dar acceso</h3><ol class="small" style="padding-left:18px;line-height:1.7"><li>Con el <b>cobro de acceso</b> activado (en <a href="#/admin/pagos">Pagos</a>), quien entre por primera vez ve la pantalla de pago y su cuenta se aprueba sola al pagar.</li><li>Sin cobro, con la <b>aprobación automática</b> activada (en <a href="#/admin/correos">Acceso</a>), basta con compartir el enlace: quien entre con su cuenta de Google queda aprobado.</li><li>Si la desactivas, solo entran directo los correos autorizados y los demás quedan <b>pendientes</b> en Usuarios.</li><li>Cada cuenta queda vinculada al primer dispositivo donde se abre y no puede abrirse en otro. Si alguien cambia de celular o lo pierde, usa <b>Liberar dispositivo</b> en Usuarios.</li></ol></div></div>`;
 }
 
 async function users(box) {
@@ -51,10 +52,11 @@ async function users(box) {
         <td><span class="chip ${USTATUS[u.status][1]}">${USTATUS[u.status][0]}</span></td>
         <td class="small">${u.attempts} intentos<br>${Math.round(u.minutes_total || 0)} min de estudio<br><span class="faint">Última vez: ${u.last_seen ? fmtDate(u.last_seen, true) : '—'}</span></td>
         <td class="small">Mejor simulacro: <b>${u.best_sim != null ? Math.round(u.best_sim) + '%' : '—'}</b><br>Promedio: ${u.avg_score != null ? u.avg_score + '%' : '—'}</td>
-        <td class="small">${esc(u.device_label || '—')}<br><span class="${u.device_switches_30d > 6 ? 'chip warn' : 'faint'}">${u.device_switches_30d} inicios en 30 días</span>${u.device_alerts ? `<br><a class="chip bad" href="#/admin/equipos">${u.device_alerts} ${u.device_alerts === 1 ? 'aviso' : 'avisos'} de equipo</a>` : ''}</td>
+        <td class="small">${u.role === 'admin' ? `${esc(u.device_label || '—')}<br><span class="faint">Administrador: sin vínculo</span>` : u.bound_label ? `Vinculada a <b>${esc(u.bound_label)}</b><br><span class="faint">desde ${fmtDate(u.bound_at)}</span>` : '<span class="faint">Sin vincular todavía</span>'}${u.bind_alerts ? `<br><a class="chip bad" href="#/admin/equipos">${u.bind_alerts} ${u.bind_alerts === 1 ? 'intento' : 'intentos'} desde otro dispositivo</a>` : ''}${u.device_alerts ? `<br><a class="chip bad" href="#/admin/equipos">${u.device_alerts} ${u.device_alerts === 1 ? 'aviso' : 'avisos'} de equipo</a>` : ''}</td>
         <td><div class="row" style="gap:6px;flex-wrap:wrap">${u.id === state.user.id ? '<span class="small faint">Tú</span>' : `
           ${u.status !== 'approved' ? `<button class="btn sm ok" data-a="approve" data-u="${u.id}">Aprobar</button>` : ''}
           ${u.status !== 'blocked' ? `<button class="btn sm danger" data-a="block" data-u="${u.id}">Bloquear</button>` : ''}
+          ${u.role !== 'admin' && u.bound_label ? `<button class="btn sm" data-a="unbind" data-u="${u.id}">Liberar dispositivo</button>` : ''}
           <button class="btn sm" data-a="device" data-u="${u.id}">Cerrar sesión</button>
           <button class="btn sm ghost" data-a="events" data-u="${u.id}">Dispositivos</button>
           <button class="btn sm ghost" data-a="role" data-u="${u.id}">${u.role === 'admin' ? 'Quitar admin' : 'Hacer admin'}</button>`}</div></td></tr>`).join('')}</table></div>` : '<div class="card empty">Sin usuarios.</div>';
@@ -64,6 +66,7 @@ async function users(box) {
     try {
       if (a === 'approve') { await api.admin.setStatus(u.id, 'approved'); toast('Usuario aprobado.', 'ok'); }
       else if (a === 'block') { if (!await confirmDialog('Bloquear usuario', `${u.email} ya no podrá entrar y su sesión se cerrará de inmediato.`, 'Bloquear', 'danger')) return; await api.admin.setStatus(u.id, 'blocked'); toast('Usuario bloqueado.', 'ok'); }
+      else if (a === 'unbind') { if (!await confirmDialog('Liberar dispositivo', `${u.email} podrá entrar desde un dispositivo nuevo. La cuenta quedará vinculada al primer dispositivo donde vuelva a iniciar sesión, y el anterior ya no podrá usarse.`, 'Liberar')) return; await api.admin.releaseBinding(u.id); await api.admin.resetDevice(u.id); toast('Dispositivo liberado. Ya puede entrar desde su nuevo dispositivo.', 'ok'); }
       else if (a === 'device') { if (!await confirmDialog('Cerrar sesión', `Se cerrará la sesión de ${u.email} en el dispositivo donde esté abierta.`, 'Cerrar sesión')) return; await api.admin.resetDevice(u.id); toast('Sesión cerrada.', 'ok'); return; }
       else if (a === 'role') { const r = u.role === 'admin' ? 'user' : 'admin'; if (!await confirmDialog('Cambiar rol', r === 'admin' ? `${u.email} tendrá acceso completo a este panel.` : `${u.email} dejará de ser administrador.`, 'Confirmar')) return; await api.admin.setRole(u.id, r); toast('Rol actualizado.', 'ok'); }
       else if (a === 'events') {
@@ -135,6 +138,16 @@ async function bugs(box) {
     actions: [{ label: 'Cancelar', value: null }, { label: 'Guardar', cls: 'primary', onClick: async (el) => { await api.admin.updateBug(b.id, el.querySelector('#bs').value, el.querySelector('#bn').value.trim()); toast('Reporte actualizado.', 'ok'); adminView(box.parentElement, 'reportes'); } }] });
   box.innerHTML = `<div class="tabs" id="bt"><button class="on" data-f="open">Abiertos</button><button data-f="resuelto">Resueltos</button><button data-f="descartado">Descartados</button><button data-f="all">Todos (${list.length})</button></div><div id="bl"></div>`;
   box.querySelectorAll('#bt button').forEach(b => b.onclick = () => { box.querySelectorAll('#bt button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(b.dataset.f); });
+  box.querySelectorAll('[data-b]').forEach(btn => btn.onclick = async () => {
+    const b = binds.find(x => x.user_id === btn.dataset.u);
+    try {
+      if (btn.dataset.b === 'liberar') {
+        if (!await confirmDialog('Liberar dispositivo', `${b.email || 'Esta cuenta'} podrá entrar desde un dispositivo nuevo, que quedará como su dispositivo vinculado. El anterior ya no podrá usarse.`, 'Liberar')) return;
+        await api.admin.releaseBinding(b.user_id); await api.admin.resetDevice(b.user_id); toast('Dispositivo liberado.', 'ok');
+      } else { await api.admin.bindIgnore(b.user_id); toast('Marcado como revisado.', 'ok'); }
+      adminView(box.parentElement, 'equipos');
+    } catch (e) { toast(errMsg(e), 'bad'); }
+  });
   render('open');
 }
 
@@ -200,7 +213,7 @@ async function content(box) {
 }
 
 async function devices(box) {
-  const list = await api.admin.devices();
+  const [list, binds] = await Promise.all([api.admin.devices(), api.admin.bindAttempts().catch(() => [])]);
   const render = (f) => {
     const sel = list.filter(c => f === 'all' || !c.resolved);
     box.querySelector('#dl').innerHTML = sel.length ? sel.map(c => {
@@ -227,7 +240,16 @@ async function devices(box) {
       adminView(box.parentElement, 'equipos');
     } catch (e) { toast(errMsg(e), 'bad'); }
   };
-  box.innerHTML = `<div class="notice info small" style="margin-bottom:12px">Cada computadora queda registrada con la primera cuenta que entra en ella. Si alguien intenta usar otra cuenta en ese equipo, se le pide cambiar a su cuenta registrada y aparece un aviso aquí. Si es una computadora compartida por dos personas reales, usa <b>Permitir en ese equipo</b>.</div>
+  const openBinds = binds.filter(b => b.open > 0);
+  const bindHTML = `<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Cuentas que intentaron entrar desde otro dispositivo</h3><span class="chip ${openBinds.length ? 'bad' : ''}">${openBinds.length}</span></div>
+    <p class="small muted" style="margin-top:0">Cada cuenta queda vinculada al primer dispositivo donde se abre. Si la persona te escribe porque cambió o perdió su dispositivo, pulsa <b>Liberar dispositivo</b>: podrá entrar desde el nuevo y ese quedará como su dispositivo.</p>
+    ${binds.length ? binds.map(b => `<div class="row between" style="align-items:flex-start;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)">
+      <div style="flex:1;min-width:240px"><b>${esc(b.full_name || b.email || 'Usuario')}</b> <span class="small muted">(${esc(b.email || '')})</span>
+        ${b.open > 0 ? '<span class="chip bad">Pendiente</span>' : '<span class="chip gray">Revisado</span>'}${b.user_status === 'blocked' ? ' <span class="chip bad">Cuenta bloqueada</span>' : ''}
+        <div class="small" style="margin-top:4px">Intentó entrar desde <b>${esc(b.last_label || 'otro dispositivo')}</b> · ${fmtDate(b.last_at, true)} · ${b.total} ${b.total == 1 ? 'vez' : 'veces'}</div>
+        <div class="small faint">${b.bound_label ? `Su dispositivo vinculado: ${esc(b.bound_label)}${b.bound_at ? ' (desde ' + fmtDate(b.bound_at) + ')' : ''}` : 'Sin dispositivo vinculado (ya se liberó)'}</div></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap">${b.bound_label ? `<button class="btn sm ok" data-b="liberar" data-u="${b.user_id}">Liberar dispositivo</button>` : ''}${b.open > 0 ? `<button class="btn sm" data-b="ignorar" data-u="${b.user_id}">Marcar como revisado</button>` : ''}</div></div>`).join('') : '<p class="small faint" style="margin:0">Nadie ha intentado entrar desde otro dispositivo.</p>'}</div>`;
+  box.innerHTML = bindHTML + `<div class="notice info small" style="margin-bottom:12px">Cada computadora queda registrada con la primera cuenta que entra en ella. Si alguien intenta usar otra cuenta en ese equipo, se le pide cambiar a su cuenta registrada y aparece un aviso aquí. Si es una computadora compartida por dos personas reales, usa <b>Permitir en ese equipo</b>.</div>
     <div class="tabs" id="dt"><button class="on" data-f="open">Pendientes (${list.filter(c => !c.resolved).length})</button><button data-f="all">Todos (${list.length})</button></div><div id="dl"></div>`;
   box.querySelectorAll('#dt button').forEach(b => b.onclick = () => { box.querySelectorAll('#dt button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(b.dataset.f); });
   render('open');

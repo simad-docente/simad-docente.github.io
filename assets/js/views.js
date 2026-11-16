@@ -1,9 +1,9 @@
 // Vistas: inicio, estudio, guía del examen, calendario, historial y perfil
-import { api } from './api.js?v=1.2.2';
-import { state, nav } from './state.js?v=1.2.2';
-import { CONFIG } from './config.js?v=1.2.2';
-import { practiceDoc } from './exam.js?v=1.2.2';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, loadingHTML, errMsg, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, lineChart, localISO, monthName, MESES_CORTOS } from './ui.js?v=1.2.2';
+import { api } from './api.js?v=1.3.0';
+import { state, nav } from './state.js?v=1.3.0';
+import { CONFIG } from './config.js?v=1.3.0';
+import { practiceDoc } from './exam.js?v=1.3.0';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, loadingHTML, errMsg, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, lineChart, localISO, monthName, MESES_CORTOS } from './ui.js?v=1.3.0';
 
 const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -245,7 +245,7 @@ export async function profileView(root) {
     <p><b>Correo:</b> ${esc(p.email)}<br><b>Folio de práctica:</b> ${esc(p.folio || '')}<br><b>Cuenta creada:</b> ${fmtDate(p.created_at)}</p>
     <button class="btn primary" id="sv">Guardar</button></div>
     <div class="card pad-lg"><h3>Seguridad de la cuenta</h3>
-      <p class="small">Tu cuenta solo puede estar abierta en <b>un dispositivo a la vez</b>. Si inicias sesión en otro equipo, la sesión de este se cerrará automáticamente. No compartas tu cuenta: el administrador puede ver los cambios de dispositivo.</p>
+      <p class="small">Tu cuenta está <b>vinculada a este dispositivo</b>: no se puede abrir en otro celular o computadora. Si cambias de dispositivo o lo pierdes, escribe al administrador para que libere tu cuenta. No compartas tu cuenta.</p>
       <p class="small muted">Dispositivo actual: ${esc(navigator.userAgent.slice(0, 90))}…</p>
       <button class="btn danger" id="lo">Cerrar sesión</button></div></div>
   <div class="card" style="margin-top:16px"><h3>Mis reportes de fallas</h3>${bugs.length ? `<div class="table-wrap"><table class="t"><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Estado</th><th>Respuesta</th></tr>${bugs.map(b => `<tr><td>${fmtDate(b.created_at, true)}</td><td>${esc(b.category)}</td><td>${esc(b.description.slice(0, 120))}</td><td><span class="chip ${b.status === 'resuelto' ? 'ok' : b.status === 'descartado' ? 'gray' : 'warn'}">${esc(b.status)}</span></td><td class="small">${esc(b.admin_note || '')}</td></tr>`).join('')}</table></div>` : '<p class="muted">No has enviado reportes.</p>'}</div>`;

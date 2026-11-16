@@ -1,12 +1,12 @@
 // Arranque, autenticación, sesión de un solo dispositivo, navegación y reportes
-import { api } from './api.js?v=1.2.2';
-import { state, nav } from './state.js?v=1.2.2';
-import { CONFIG } from './config.js?v=1.2.2';
-import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.2.2';
-import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.2.2';
-import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.2.2';
-import { adminView } from './admin.js?v=1.2.2';
-import { deviceKey, fingerprints } from './device.js?v=1.2.2';
+import { api } from './api.js?v=1.3.0';
+import { state, nav } from './state.js?v=1.3.0';
+import { CONFIG } from './config.js?v=1.3.0';
+import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.3.0';
+import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.3.0';
+import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.3.0';
+import { adminView } from './admin.js?v=1.3.0';
+import { deviceKey, fingerprints } from './device.js?v=1.3.0';
 
 const app = document.getElementById('app');
 const SID_KEY = 'simad_sid';
@@ -110,7 +110,7 @@ function loginPage(err = '') {
       ${err ? `<div class="notice bad small" style="margin:12px 0">${esc(err)}</div>` : ''}
       <button class="btn google lg" id="g" style="width:100%;justify-content:center;margin-top:12px">${GOOGLE_SVG}<span>Continuar con Google</span></button>
       <div class="divider"></div>
-      <p class="small muted">Tu cuenta funciona en <b>un solo dispositivo a la vez</b>: si inicias sesión en otro equipo, se cerrará en el anterior.</p></div>
+      <p class="small muted">Tu cuenta queda <b>vinculada al primer dispositivo</b> donde inicies sesión. Úsala siempre en ese mismo celular o computadora.</p></div>
       <p class="small faint" style="text-align:center;margin-top:14px">Versión ${esc(CONFIG.version)} · <a href="privacidad.html" target="_blank" rel="noopener">Aviso de privacidad</a></p></div></section></div>`;
   document.getElementById('g').onclick = async (e) => {
     e.currentTarget.disabled = true;
@@ -273,6 +273,30 @@ function deviceConflictPage(hint) {
   document.getElementById('out').onclick = logout;
 }
 
+// La cuenta ya está vinculada a otro dispositivo: no se puede abrir aquí
+function accountBoundPage(dv) {
+  stopGuard();
+  const mail = CONFIG.contactEmail;
+  const email = state.user?.email || '';
+  const since = dv.bound_since ? fmtDate(dv.bound_since) : '';
+  const href = `mailto:${mail}?subject=${encodeURIComponent('Cambio de dispositivo · Simulador SIMAD')}&body=${encodeURIComponent(`Hola, necesito usar mi cuenta del simulador en un dispositivo nuevo.\n\nMi cuenta: ${email}\nMotivo (cambié de celular, lo perdí, etc.): `)}`;
+  app.innerHTML = `<div class="kick" style="max-width:600px"><div class="card" style="text-align:left">
+    <div class="brand-mark" style="background:var(--warn,#a86a00);color:#fff;margin-bottom:14px">!</div>
+    <h2 style="margin-top:0">Esta cuenta ya está abierta en otro dispositivo</h2>
+    <p>La cuenta <b>${esc(email)}</b> quedó vinculada al dispositivo donde se abrió por primera vez${dv.bound_label ? ` (<b>${esc(dv.bound_label)}</b>${since ? `, desde el ${esc(since)}` : ''})` : ''}. Por seguridad, solo puede usarse en ese dispositivo.</p>
+    <p>Entra desde ese dispositivo para continuar con tu progreso, o intenta con otra cuenta.</p>
+    <div class="notice info small" style="margin:14px 0"><b>¿Cambiaste de celular o computadora, o lo perdiste?</b> Escribe a <a href="${href}">${esc(mail)}</a> desde el correo de tu cuenta para que te ayuden a usarla en tu nuevo dispositivo.</div>
+    <div class="row wrap"><button class="btn primary" id="switch">Intentar con otra cuenta</button><a class="btn" href="${href}">Escribir al administrador</a><button class="btn ghost" id="out">Cerrar sesión</button></div></div></div>`;
+  document.getElementById('switch').onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    state.session = state.user = state.profile = null; state.sid = null;
+    localStorage.removeItem(SID_KEY);
+    try { await api.signOut('local'); } catch (er) { }
+    try { await api.signInGoogle(); } catch (er) { e.currentTarget.disabled = false; toast(errMsg(er), 'bad'); }
+  };
+  document.getElementById('out').onclick = logout;
+}
+
 async function logout() {
   stopGuard(); stopStudyTimer();
   state.session = state.user = state.profile = null; state.sid = null; state.isAdmin = false;
@@ -399,7 +423,7 @@ async function boot() {
   try {
     const { fp, fpHw } = await fingerprints();
     const dv = await api.checkDevice(deviceKey(), fp, fpHw, deviceLabel());
-    if (dv && dv.ok === false) { deviceConflictPage(dv.owner_hint); return; }
+    if (dv && dv.ok === false) { if (dv.reason === 'account_bound') accountBoundPage(dv); else deviceConflictPage(dv.owner_hint); return; }
   } catch (e) {
     if (errCode(e) === 'NO_AUTH') { await api.signOut('local').catch(() => { }); loginPage('Tu sesión expiró. Inicia sesión de nuevo.'); return; }
     reportClientError(e?.message || String(e), 'check_device', e?.stack);

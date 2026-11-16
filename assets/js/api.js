@@ -1,5 +1,5 @@
 // Capa de acceso a datos (Supabase). Toda la lógica sensible se valida en el servidor.
-import { CONFIG } from './config.js?v=1.2.2';
+import { CONFIG } from './config.js?v=1.3.0';
 
 let sb = null;
 function client() {
@@ -113,6 +113,9 @@ const realApi = {
     setQuestionActive: (id, active) => q(client().from('questions').update({ active }).eq('id', id)),
     devices: () => rpc('admin_devices'),
     deviceAction: (id, action) => rpc('admin_device_action', { p_conflict: id, p_action: action }),
+    bindAttempts: () => rpc('admin_bind_attempts'),
+    releaseBinding: (u) => rpc('admin_release_binding', { p_user: u }),
+    bindIgnore: (u) => rpc('admin_bind_ignore', { p_user: u }),
     getSettings: () => rpc('admin_get_settings'),
     setAutoApprove: (on) => rpc('admin_set_auto_approve', { p_on: !!on }),
     payments: () => rpc('admin_payments'),
