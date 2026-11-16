@@ -1,0 +1,2 @@
+-- 002 y 003 (tablas del banco, intentos y funciones del examen) se aplicaron directamente en Supabase;
+-- consultar el historial de migraciones del proyecto.
