@@ -1,9 +1,9 @@
 // Vistas: inicio, estudio, guía del examen, calendario, historial y perfil
-import { api } from './api.js?v=1.2.1';
-import { state, nav } from './state.js?v=1.2.1';
-import { CONFIG } from './config.js?v=1.2.1';
-import { practiceDoc } from './exam.js?v=1.2.1';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, loadingHTML, errMsg, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, lineChart, localISO, monthName, MESES_CORTOS } from './ui.js?v=1.2.1';
+import { api } from './api.js?v=1.2.2';
+import { state, nav } from './state.js?v=1.2.2';
+import { CONFIG } from './config.js?v=1.2.2';
+import { practiceDoc } from './exam.js?v=1.2.2';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, loadingHTML, errMsg, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, lineChart, localISO, monthName, MESES_CORTOS } from './ui.js?v=1.2.2';
 
 const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 

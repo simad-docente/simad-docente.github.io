@@ -1,12 +1,12 @@
 // Arranque, autenticación, sesión de un solo dispositivo, navegación y reportes
-import { api } from './api.js?v=1.2.1';
-import { state, nav } from './state.js?v=1.2.1';
-import { CONFIG } from './config.js?v=1.2.1';
-import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.2.1';
-import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.2.1';
-import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.2.1';
-import { adminView } from './admin.js?v=1.2.1';
-import { deviceKey, fingerprints } from './device.js?v=1.2.1';
+import { api } from './api.js?v=1.2.2';
+import { state, nav } from './state.js?v=1.2.2';
+import { CONFIG } from './config.js?v=1.2.2';
+import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.2.2';
+import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.2.2';
+import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.2.2';
+import { adminView } from './admin.js?v=1.2.2';
+import { deviceKey, fingerprints } from './device.js?v=1.2.2';
 
 const app = document.getElementById('app');
 const SID_KEY = 'simad_sid';
