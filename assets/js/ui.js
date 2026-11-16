@@ -121,7 +121,7 @@ export function loadingHTML(msg = 'Cargando…') {
 const ERRORS = {
   SESSION_REPLACED: 'Tu cuenta se abrió en otro dispositivo.',
   NOT_APPROVED: 'Tu cuenta aún no está aprobada por el administrador.',
-  NO_QUESTIONS: 'No hay reactivos disponibles con ese filtro. Prueba con otra subárea o pide al administrador que cargue el banco.',
+  NO_QUESTIONS: 'No hay reactivos con esos filtros. Prueba con otra subárea o desmarca «Repasar mis errores».',
   TIME_OVER: 'El tiempo del examen terminó.',
   ATTEMPT_CLOSED: 'Este examen ya fue concluido.',
   FORBIDDEN: 'No tienes permiso para realizar esta acción.',

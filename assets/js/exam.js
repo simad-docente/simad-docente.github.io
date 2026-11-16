@@ -1,9 +1,9 @@
 // Motor de examen (simulacro), práctica y resultados
-import { api } from './api.js?v=1.1.1';
-import { state, nav } from './state.js?v=1.1.1';
-import { CONFIG } from './config.js?v=1.1.1';
-import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.1.1';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.1.1';
+import { api } from './api.js?v=1.1.2';
+import { state, nav } from './state.js?v=1.1.2';
+import { CONFIG } from './config.js?v=1.1.2';
+import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.1.2';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.1.2';
 
 // ---------- Render de un reactivo ----------
 export function questionHTML(it, { chosen = null, result = null, disabled = false } = {}) {
@@ -411,7 +411,7 @@ export async function practiceSetup(root) {
     <div class="grid g2"><div class="card pad-lg"><h2>Elige qué practicar</h2>
       <label class="field"><span>Subárea</span><select id="sub"><option value="">Todas las subáreas (mezcla)</option>${Object.entries(SUBAREAS).map(([k, v]) => `<option value="${k}">${k} · ${esc(v.name)}</option>`).join('')}</select></label>
       <label class="field"><span>Número de reactivos</span><select id="n"><option>5</option><option selected>10</option><option>15</option><option>20</option><option>30</option></select></label>
-      <label class="check"><input type="checkbox" id="err"><div><b>Repasar mis errores</b><br><span class="small muted">Solo reactivos que respondiste mal en intentos anteriores.</span></div></label>
+      <label class="check" id="errbox"><input type="checkbox" id="err"><div><b>Repasar mis errores</b><br><span class="small muted" id="errhint">Solo reactivos que respondiste mal en intentos anteriores.</span></div></label>
       <div class="row" style="margin-top:16px"><button class="btn primary lg" id="go">Comenzar práctica</button></div></div>
       <div class="card pad-lg"><h2>Cómo funciona</h2><ul class="small" style="padding-left:18px;line-height:1.75">
         <li>Los reactivos se eligen priorizando los que aún no has visto y los que fallaste.</li>
@@ -419,12 +419,38 @@ export async function practiceSetup(root) {
         <li>Cada respuesta muestra por qué es correcta y por qué las otras no, como en las argumentaciones de la Guía oficial.</li>
         <li>Tu tiempo y porcentaje de aciertos quedan registrados en tu historial y calendario.</li></ul>
         <a class="btn" href="#/estudio">Ir a las fichas de estudio</a></div></div>`;
+  // "Repasar mis errores" solo se activa si hay respuestas incorrectas en la subárea elegida
+  let wrong = null;
+  const sub = root.querySelector('#sub'), err = root.querySelector('#err'), hint = root.querySelector('#errhint'), box = root.querySelector('#errbox');
+  const refresh = () => {
+    if (!wrong) return;
+    const k = sub.value;
+    const n = k ? (wrong[k] || 0) : Object.values(wrong).reduce((a, b) => a + b, 0);
+    err.disabled = n === 0;
+    if (n === 0) err.checked = false;
+    box.style.opacity = n === 0 ? '.6' : '';
+    box.style.cursor = n === 0 ? 'default' : '';
+    hint.textContent = n === 0
+      ? (k ? `Aún no tienes reactivos fallados en la subárea ${k}. Esta opción se activa cuando respondas alguno mal.` : 'Aún no tienes reactivos fallados. Esta opción se activa cuando respondas alguno mal.')
+      : `Tienes ${n} ${n === 1 ? 'respuesta incorrecta' : 'respuestas incorrectas'} por repasar${k ? ' en esta subárea' : ''}.`;
+  };
+  sub.onchange = refresh;
+  api.myStats().then(st => {
+    wrong = {};
+    for (const [k, v] of Object.entries(st?.by_subarea || {})) wrong[k] = Math.max(0, (v.total || 0) - (v.correct || 0));
+    refresh();
+  }).catch(() => { });
   root.querySelector('#go').onclick = async (e) => {
     e.target.disabled = true;
+    const focus = err.checked ? 'errores' : null;
     try {
-      const p = await api.startAttempt(state.sid, { mode: 'practica', subarea: root.querySelector('#sub').value || null, count: +root.querySelector('#n').value, focus: root.querySelector('#err').checked ? 'errores' : null, secure: false });
+      const p = await api.startAttempt(state.sid, { mode: 'practica', subarea: sub.value || null, count: +root.querySelector('#n').value, focus, secure: false });
       runPractice(root, p);
-    } catch (err) { e.target.disabled = false; toast(errMsg(err), 'bad'); }
+    } catch (ex) {
+      e.target.disabled = false;
+      if (focus && errCode(ex) === 'NO_QUESTIONS') toast('No tienes reactivos fallados con ese filtro. Desmarca «Repasar mis errores» para practicar con reactivos nuevos.', 'warn');
+      else toast(errMsg(ex), 'bad');
+    }
   };
 }
 
