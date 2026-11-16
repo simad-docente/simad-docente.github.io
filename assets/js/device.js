@@ -25,18 +25,6 @@ async function sha(text) {
   } catch (e) { return null; }
 }
 
-function canvasSig() {
-  try {
-    const c = document.createElement('canvas'); c.width = 240; c.height = 60;
-    const g = c.getContext('2d');
-    g.textBaseline = 'top'; g.font = '16px Arial'; g.fillStyle = '#f60'; g.fillRect(100, 1, 62, 20);
-    g.fillStyle = '#069'; g.fillText('SIMAD ñ 2027 ✓', 2, 15);
-    g.fillStyle = 'rgba(102,204,0,0.7)'; g.fillText('SIMAD ñ 2027 ✓', 4, 17);
-    g.beginPath(); g.arc(50, 30, 20, 0, Math.PI * 2); g.stroke();
-    return c.toDataURL();
-  } catch (e) { return ''; }
-}
-
 function webglSig() {
   try {
     const c = document.createElement('canvas');
@@ -49,13 +37,15 @@ function webglSig() {
   } catch (e) { return ''; }
 }
 
-// fp: este navegador en este equipo (detecta modo incógnito y datos borrados)
+// fp: este navegador en este equipo. Es igual en modo incógnito y no cambia cuando el navegador se actualiza
+//     (se quitan los números de versión), pero sí distingue Chrome, Edge, Firefox, Safari, etc.
 // fpHw: el equipo sin importar el navegador (solo se usa para avisar al administrador)
 export async function fingerprints() {
   const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { return ''; } })();
   const platform = navigator.userAgentData?.platform || navigator.platform || '';
   const hw = [platform, navigator.hardwareConcurrency || '', navigator.deviceMemory || '', `${screen.width}x${screen.height}x${screen.colorDepth}`, tz, webglSig()].join('§');
-  const browser = [navigator.userAgent, (navigator.languages || [navigator.language]).join(','), canvasSig()].join('§');
+  const uaFamily = (navigator.userAgent || '').replace(/\d+/g, '#');
+  const browser = [uaFamily, (navigator.languages || [navigator.language]).join(',')].join('§');
   const [fpHw, fp] = await Promise.all([sha('hw§' + hw), sha('br§' + hw + '§' + browser)]);
   return { fp, fpHw };
 }

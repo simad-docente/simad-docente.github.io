@@ -1,8 +1,8 @@
 // Panel de administración
-import { api } from './api.js?v=1.3.0';
-import { state } from './state.js?v=1.3.0';
-import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.3.0';
-import { CONFIG } from './config.js?v=1.3.0';
+import { api } from './api.js?v=1.3.1';
+import { state } from './state.js?v=1.3.1';
+import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.3.1';
+import { CONFIG } from './config.js?v=1.3.1';
 
 const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['pagos', 'Pagos'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
 const USTATUS = { pending: ['Pendiente', 'warn'], approved: ['Aprobado', 'ok'], blocked: ['Bloqueado', 'bad'] };
@@ -39,7 +39,7 @@ async function overview(box) {
       ${Object.keys(SUBAREAS).map(k => { const n = o.bank?.[k] || 0; return `<div class="subarea-row"><span class="code">${k}</span><div><div class="name">${esc(SUBAREAS[k].name)}</div><div class="bar ${n >= 15 ? 'ok' : 'bad'}"><i style="width:${Math.min(100, pct(n, 60))}%"></i></div></div><span class="pct">${n}</span></div>`; }).join('')}
       ${o.bank_total === 0 ? '<div class="notice warn" style="margin-top:10px">El banco está vacío. Ve a <a href="#/admin/contenido">Contenido</a> e importa el archivo <b>contenido_simulador.json</b>.</div>' : ''}</div>
       <div class="card"><h3>Fichas de estudio</h3><p><b>${o.docs}</b> fichas cargadas.</p>
-      <h3 style="margin-top:16px">Cómo dar acceso</h3><ol class="small" style="padding-left:18px;line-height:1.7"><li>Con el <b>cobro de acceso</b> activado (en <a href="#/admin/pagos">Pagos</a>), quien entre por primera vez ve la pantalla de pago y su cuenta se aprueba sola al pagar.</li><li>Sin cobro, con la <b>aprobación automática</b> activada (en <a href="#/admin/correos">Acceso</a>), basta con compartir el enlace: quien entre con su cuenta de Google queda aprobado.</li><li>Si la desactivas, solo entran directo los correos autorizados y los demás quedan <b>pendientes</b> en Usuarios.</li><li>Cada cuenta queda vinculada al primer dispositivo donde se abre y no puede abrirse en otro. Si alguien cambia de celular o lo pierde, usa <b>Liberar dispositivo</b> en Usuarios.</li></ol></div></div>`;
+      <h3 style="margin-top:16px">Cómo dar acceso</h3><ol class="small" style="padding-left:18px;line-height:1.7"><li>Con el <b>cobro de acceso</b> activado (en <a href="#/admin/pagos">Pagos</a>), quien entre por primera vez ve la pantalla de pago y su cuenta se aprueba sola al pagar.</li><li>Sin cobro, con la <b>aprobación automática</b> activada (en <a href="#/admin/correos">Acceso</a>), basta con compartir el enlace: quien entre con su cuenta de Google queda aprobado.</li><li>Si la desactivas, solo entran directo los correos autorizados y los demás quedan <b>pendientes</b> en Usuarios.</li><li>Cada cuenta queda vinculada al primer dispositivo y navegador donde se abre (el modo incógnito de ese navegador sí entra) y no puede abrirse en otro. Si alguien cambia de celular o lo pierde, usa <b>Liberar dispositivo</b> en Usuarios.</li></ol></div></div>`;
 }
 
 async function users(box) {
@@ -242,7 +242,7 @@ async function devices(box) {
   };
   const openBinds = binds.filter(b => b.open > 0);
   const bindHTML = `<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Cuentas que intentaron entrar desde otro dispositivo</h3><span class="chip ${openBinds.length ? 'bad' : ''}">${openBinds.length}</span></div>
-    <p class="small muted" style="margin-top:0">Cada cuenta queda vinculada al primer dispositivo donde se abre. Si la persona te escribe porque cambió o perdió su dispositivo, pulsa <b>Liberar dispositivo</b>: podrá entrar desde el nuevo y ese quedará como su dispositivo.</p>
+    <p class="small muted" style="margin-top:0">Cada cuenta queda vinculada al primer dispositivo y navegador donde se abre. Si la persona te escribe porque cambió o perdió su dispositivo, o cambió de navegador, pulsa <b>Liberar dispositivo</b>: podrá entrar desde el nuevo y ese quedará como su dispositivo.</p>
     ${binds.length ? binds.map(b => `<div class="row between" style="align-items:flex-start;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)">
       <div style="flex:1;min-width:240px"><b>${esc(b.full_name || b.email || 'Usuario')}</b> <span class="small muted">(${esc(b.email || '')})</span>
         ${b.open > 0 ? '<span class="chip bad">Pendiente</span>' : '<span class="chip gray">Revisado</span>'}${b.user_status === 'blocked' ? ' <span class="chip bad">Cuenta bloqueada</span>' : ''}
