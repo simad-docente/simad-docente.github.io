@@ -1,9 +1,9 @@
 // Motor de examen (simulacro), práctica y resultados
-import { api } from './api.js?v=1.1.2';
-import { state, nav } from './state.js?v=1.1.2';
-import { CONFIG } from './config.js?v=1.1.2';
-import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.1.2';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.1.2';
+import { api } from './api.js?v=1.1.3';
+import { state, nav } from './state.js?v=1.1.3';
+import { CONFIG } from './config.js?v=1.1.3';
+import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.1.3';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.1.3';
 
 // ---------- Render de un reactivo ----------
 export function questionHTML(it, { chosen = null, result = null, disabled = false } = {}) {
@@ -432,7 +432,7 @@ export async function practiceSetup(root) {
     box.style.cursor = n === 0 ? 'default' : '';
     hint.textContent = n === 0
       ? (k ? `Aún no tienes reactivos fallados en la subárea ${k}. Esta opción se activa cuando respondas alguno mal.` : 'Aún no tienes reactivos fallados. Esta opción se activa cuando respondas alguno mal.')
-      : `Tienes ${n} ${n === 1 ? 'respuesta incorrecta' : 'respuestas incorrectas'} por repasar${k ? ' en esta subárea' : ''}.`;
+      : `Tienes reactivos fallados por repasar${k ? ' en esta subárea' : ''}. Solo se usarán esos.`;
   };
   sub.onchange = refresh;
   api.myStats().then(st => {

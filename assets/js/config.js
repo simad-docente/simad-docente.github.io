@@ -10,5 +10,5 @@ export const CONFIG = {
   shortTotal: 30,
   maxIncidents: 3,
   heartbeatMs: 45000,
-  version: '1.1.2'
+  version: '1.1.3'
 };
