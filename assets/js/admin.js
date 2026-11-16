@@ -1,8 +1,8 @@
 // Panel de administración
-import { api } from './api.js?v=1.2.0';
-import { state } from './state.js?v=1.2.0';
-import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.2.0';
-import { CONFIG } from './config.js?v=1.2.0';
+import { api } from './api.js?v=1.2.1';
+import { state } from './state.js?v=1.2.1';
+import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.2.1';
+import { CONFIG } from './config.js?v=1.2.1';
 
 const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['pagos', 'Pagos'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
 const USTATUS = { pending: ['Pendiente', 'warn'], approved: ['Aprobado', 'ok'], blocked: ['Bloqueado', 'bad'] };
@@ -245,8 +245,8 @@ async function payments(box) {
   const checkHTML = (c) => {
     if (!c) return '<p class="small muted" style="margin:0">Pulsa <b>Probar conexión</b> para revisar que la llave de Mercado Pago funcione.</p>';
     if (c.error) return `<div class="notice bad small">${esc(c.error)}</div>`;
-    return `<div class="row wrap" style="gap:6px;margin-bottom:8px">${c.ok ? `<span class="chip ok">Conectado</span>${c.test ? '<span class="chip warn">Modo de prueba</span>' : '<span class="chip ok">Modo real</span>'}` : '<span class="chip bad">Sin conexión</span>'}${c.site && c.site !== 'MLM' ? `<span class="chip bad">Cuenta de otro país (${esc(c.site)})</span>` : ''}${c.webhook_secret ? '<span class="chip ok">Firma del aviso configurada</span>' : '<span class="chip warn">Falta la firma del aviso</span>'}</div>
-      <p class="small muted" style="margin:0">${c.ok ? (c.test ? 'Los pagos son simulados con tarjetas de prueba; no se cobra dinero real. Para cobrar de verdad, cambia en Supabase la llave por la de producción.' : 'Los pagos son reales y el dinero llega a tu cuenta de Mercado Pago.') : 'La llave guardada en Supabase no funciona: ' + esc(c.detail || 'revisa que sea el Access Token correcto') + '.'}${c.webhook_secret ? '' : ' Sin la firma, los avisos se aceptan solo después de consultar el pago directamente en Mercado Pago.'}</p>`;
+    return `<div class="row wrap" style="gap:6px;margin-bottom:8px">${c.ok ? `<span class="chip ok">Conectado</span>${c.test === true ? '<span class="chip warn">Modo de prueba</span>' : c.test === false ? '<span class="chip ok">Modo real</span>' : ''}` : '<span class="chip bad">Sin conexión</span>'}${c.site && c.site !== 'MLM' ? `<span class="chip bad">Cuenta de otro país (${esc(c.site)})</span>` : ''}${c.webhook_secret ? '<span class="chip ok">Firma del aviso configurada</span>' : '<span class="chip warn">Falta la firma del aviso</span>'}</div>
+      <p class="small muted" style="margin:0">${c.ok ? (c.test === true ? 'Los pagos son simulados con tarjetas de prueba; no se cobra dinero real. Para cobrar de verdad, cambia en Supabase la llave por la de producción.' : c.test === false ? 'Los pagos son reales y el dinero llega a tu cuenta de Mercado Pago.' : 'La llave funciona. Haz un pago de prueba para confirmar todo el recorrido.') : 'La llave guardada en Supabase no funciona: ' + esc(c.detail || 'revisa que sea el Access Token correcto') + '.'}${c.webhook_secret ? '' : ' Sin la firma, los avisos se aceptan solo después de consultar el pago directamente en Mercado Pago.'}</p>`;
   };
   box.innerHTML = `<div class="grid g2">
     <div class="card pad-lg"><div class="row between" style="align-items:flex-start;gap:16px">
