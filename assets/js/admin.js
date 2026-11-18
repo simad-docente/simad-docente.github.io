@@ -1,8 +1,8 @@
 // Panel de administración
-import { api } from './api.js?v=1.3.1';
-import { state } from './state.js?v=1.3.1';
-import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.3.1';
-import { CONFIG } from './config.js?v=1.3.1';
+import { api } from './api.js?v=1.4.0';
+import { state } from './state.js?v=1.4.0';
+import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.4.0';
+import { CONFIG } from './config.js?v=1.4.0';
 
 const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['pagos', 'Pagos'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
 const USTATUS = { pending: ['Pendiente', 'warn'], approved: ['Aprobado', 'ok'], blocked: ['Bloqueado', 'bad'] };

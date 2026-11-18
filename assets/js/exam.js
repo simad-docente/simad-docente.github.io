@@ -1,9 +1,10 @@
 // Motor de examen (simulacro), práctica y resultados
-import { api } from './api.js?v=1.3.1';
-import { state, nav } from './state.js?v=1.3.1';
-import { CONFIG } from './config.js?v=1.3.1';
-import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.3.1';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.3.1';
+import { api } from './api.js?v=1.4.0';
+import { state, nav } from './state.js?v=1.4.0';
+import { CONFIG } from './config.js?v=1.4.0';
+import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.4.0';
+import { ptsExamen, fmtPts } from './proceso.js?v=1.4.0';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.4.0';
 
 // ---------- Render de un reactivo ----------
 export function questionHTML(it, { chosen = null, result = null, disabled = false } = {}) {
@@ -70,7 +71,7 @@ export async function examLobby(root) {
         <li>Puedes marcar reactivos para revisarlos antes de enviar.</li>
         <li>Al terminar verás tu <b>porcentaje de aciertos</b>, el <b>tiempo empleado</b> y la argumentación de cada reactivo.</li>
       </ul>
-      <div class="notice info small">Este simulador es una herramienta independiente de estudio. Sus reactivos son originales, elaborados a partir de la bibliografía de la Guía de apoyo 2026-2027; no son reactivos del examen oficial.</div>
+      <div class="notice info small">Este simulador es una herramienta independiente de estudio. Sus reactivos son originales, elaborados a partir de la bibliografía oficial (Guía de apoyo 2026-2027, vigente mientras la USICAMM publica la del ciclo 2027-2028); no son reactivos del examen oficial.</div>
     </div>
   </div>`;
   if (active) {
@@ -405,7 +406,7 @@ function runExam(payload, { proctor, strict }) {
 }
 
 // ---------- Práctica con retroalimentación inmediata ----------
-export async function practiceSetup(root) {
+export async function practiceSetup(root, pre = null) {
   root.innerHTML = `<div class="page-head"><div><div class="crumb">Práctica</div><h1>Práctica guiada</h1>
     <p class="muted">Responde y recibe de inmediato la respuesta correcta, la argumentación y la referencia para estudiar.</p></div></div>
     <div class="grid g2"><div class="card pad-lg"><h2>Elige qué practicar</h2>
@@ -435,7 +436,9 @@ export async function practiceSetup(root) {
       : `Tienes reactivos fallados por repasar${k ? ' en esta subárea' : ''}. Solo se usarán esos.`;
   };
   sub.onchange = refresh;
+  if (pre && SUBAREAS[pre]) sub.value = pre;
   api.myStats().then(st => {
+    if (pre === 'errores') setTimeout(() => { if (!err.disabled) err.checked = true; }, 0);
     wrong = {};
     for (const [k, v] of Object.entries(st?.by_subarea || {})) wrong[k] = Math.max(0, (v.total || 0) - (v.correct || 0));
     refresh();
@@ -521,7 +524,7 @@ export async function resultsView(root, id) {
   <div class="row"><button class="btn" id="print">Descargar constancia</button>${weakest ? `<button class="btn primary" id="weak">Practicar mi subárea más débil (${weakest})</button>` : ''}</div></div>
   ${a.status === 'annulled' ? `<div class="notice bad" style="margin-bottom:16px"><b>Simulacro anulado por incidencias.</b> En la evaluación real, estas conductas pueden bloquear o anular tu aplicación. Revisa la lista de incidencias abajo.</div>` : ''}
   <div class="grid g3">
-    <div class="card pad-lg row" style="gap:22px;flex-wrap:nowrap;align-items:center">${ring(p, 124)}<div><div class="stat" style="padding:0"><div class="label">Aciertos</div><div class="value">${a.correct ?? 0} / ${a.total}</div><div class="sub">${answered} respondidos · ${a.total - answered} sin responder</div></div></div></div>
+    <div class="card pad-lg row" style="gap:22px;flex-wrap:nowrap;align-items:center">${ring(p, 124)}<div><div class="stat" style="padding:0"><div class="label">Aciertos</div><div class="value">${a.correct ?? 0} / ${a.total}</div><div class="sub">${answered} respondidos · ${a.total - answered} sin responder</div>${a.mode !== 'practica' && a.status === 'submitted' ? `<div class="sub" style="margin-top:6px"><b>≈ ${fmtPts(ptsExamen(p))} de 30 puntos</b> del examen · <a href="#/proceso/puntaje">Calcular mi puntaje final</a></div>` : ''}</div></div></div>
     <div class="card stat"><div class="label">Tiempo empleado</div><div class="value">${fmtTime(a.elapsed_sec)}</div><div class="sub">${[a.time_limit_sec ? 'de ' + fmtTime(a.time_limit_sec) + ' disponibles' : '', perItem ? 'promedio ' + fmtDur(perItem) + ' por reactivo' : ''].filter(Boolean).join(' · ')}</div></div>
     <div class="card stat"><div class="label">Incidencias</div><div class="value">${incs.length}</div><div class="sub">${a.mode === 'practica' ? 'No aplica en práctica' : incs.length ? 'Revisa el detalle abajo' : 'Sin incidencias registradas'}</div></div>
   </div>

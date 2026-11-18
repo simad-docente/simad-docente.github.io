@@ -1,12 +1,13 @@
 // Arranque, autenticación, sesión de un solo dispositivo, navegación y reportes
-import { api } from './api.js?v=1.3.1';
-import { state, nav } from './state.js?v=1.3.1';
-import { CONFIG } from './config.js?v=1.3.1';
-import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.3.1';
-import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.3.1';
-import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.3.1';
-import { adminView } from './admin.js?v=1.3.1';
-import { deviceKey, fingerprints } from './device.js?v=1.3.1';
+import { api } from './api.js?v=1.4.0';
+import { state, nav } from './state.js?v=1.4.0';
+import { CONFIG } from './config.js?v=1.4.0';
+import { esc, toast, modal, loadingHTML, errMsg, errCode, initials, deviceLabel, fmtDate, money, payLabel } from './ui.js?v=1.4.0';
+import { examLobby, practiceSetup, resultsView } from './exam.js?v=1.4.0';
+import { dashboard, studyList, studyDoc, stopStudyTimer, examGuide, calendarView, historyView, profileView } from './views.js?v=1.4.0';
+import { adminView } from './admin.js?v=1.4.0';
+import { processView } from './proceso.js?v=1.4.0';
+import { deviceKey, fingerprints } from './device.js?v=1.4.0';
 
 const app = document.getElementById('app');
 const SID_KEY = 'simad_sid';
@@ -100,7 +101,7 @@ function loginPage(err = '') {
   app.innerHTML = `<div class="login-wrap">
     <section class="login-hero"><div><div class="brand" style="margin-bottom:40px"><div class="brand-mark">S</div><div class="brand-text"><b>${esc(CONFIG.appName)}</b><span>${esc(CONFIG.level)}</span></div></div>
       <h1>Prepárate para el examen de admisión como si fuera el día real</h1>
-      <p class="lead">Simulacros de 90 reactivos en 4 horas, práctica guiada con argumentaciones y fichas de estudio de toda la bibliografía oficial.</p>
+      <p class="lead">Simulacros de 90 reactivos en 4 horas, práctica guiada con argumentaciones, fichas de estudio de toda la bibliografía oficial y el calendario del proceso 2027-2028, con examen el 15 y 16 de mayo de 2027.</p>
       <ul><li><i>1</i><div><b>Simulacro con navegador seguro.</b> Pantalla completa, cámara, micrófono e incidencias, como en la aplicación en línea.</div></li>
       <li><i>2</i><div><b>Reactivos de casos reales del aula.</b> Tres opciones muy parecidas, con la argumentación de cada respuesta.</div></li>
       <li><i>3</i><div><b>Tu progreso en un calendario.</b> Porcentaje de aciertos y tiempo en cada intento, por subárea.</div></li></ul></div>
@@ -182,6 +183,7 @@ async function payPage(cfg, notice = null) {
         <li>Práctica por subárea con la argumentación de cada respuesta</li>
         <li>Fichas de estudio de la bibliografía oficial</li>
         <li>Calendario, historial y repaso de tus errores</li>
+        <li>Fechas oficiales 2027-2028, calculadora de puntaje y plan de estudio semana a semana</li>
       </ul>
     </div>
     <button class="btn primary lg pay-btn" id="pay"><span>Pagar ${price} con Mercado Pago</span></button>
@@ -309,7 +311,7 @@ window.addEventListener('simad:logout', logout);
 window.addEventListener('simad:bug', () => bugDialog());
 
 // ---------- Estructura de la app ----------
-const NAV = [['#/', 'Inicio'], ['#/examen', 'Examen'], ['#/practica', 'Práctica'], ['#/estudio', 'Estudio'], ['#/calendario', 'Calendario'], ['#/historial', 'Historial']];
+const NAV = [['#/', 'Inicio'], ['#/examen', 'Examen'], ['#/practica', 'Práctica'], ['#/estudio', 'Estudio'], ['#/proceso', 'Proceso 2027'], ['#/calendario', 'Calendario'], ['#/historial', 'Historial']];
 function shell() {
   const p = state.profile;
   const name = p.full_name || state.user.email;
@@ -373,16 +375,17 @@ async function route() {
   setActiveNav(path);
   const view = document.getElementById('view');
   const [, seg, arg] = path.split('/');
-  const titles = { '': 'Inicio', examen: 'Examen', practica: 'Práctica', estudio: 'Estudio', guia: 'Cómo es el examen', calendario: 'Calendario', historial: 'Historial', resultado: 'Resultado', perfil: 'Mi cuenta', admin: 'Administración' };
+  const titles = { '': 'Inicio', examen: 'Examen', practica: 'Práctica', estudio: 'Estudio', guia: 'Cómo es el examen', proceso: 'Proceso 2027-2028', calendario: 'Calendario', historial: 'Historial', resultado: 'Resultado', perfil: 'Mi cuenta', admin: 'Administración' };
   document.title = `${titles[seg || ''] || ''} · ${CONFIG.appShort}`;
   window.scrollTo(0, 0);
   try {
     switch (seg || '') {
       case '': await dashboard(view); break;
       case 'examen': await examLobby(view); break;
-      case 'practica': await practiceSetup(view); break;
+      case 'practica': await practiceSetup(view, arg ? decodeURIComponent(arg) : null); break;
       case 'estudio': arg ? await studyDoc(view, decodeURIComponent(arg)) : await studyList(view); break;
       case 'guia': examGuide(view); break;
+      case 'proceso': await processView(view, arg || ''); break;
       case 'calendario': await calendarView(view); break;
       case 'historial': await historyView(view); break;
       case 'resultado': await resultsView(view, arg); break;

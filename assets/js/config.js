@@ -12,5 +12,5 @@ export const CONFIG = {
   heartbeatMs: 45000,
   contactEmail: 'joseloploe27@gmail.com',
   webhookUrl: 'https://qoctovzzguzrdwcwuofm.supabase.co/functions/v1/mp-webhook',
-  version: '1.3.1'
+  version: '1.4.0'
 };

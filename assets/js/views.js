@@ -1,9 +1,10 @@
 // Vistas: inicio, estudio, guía del examen, calendario, historial y perfil
-import { api } from './api.js?v=1.3.1';
-import { state, nav } from './state.js?v=1.3.1';
-import { CONFIG } from './config.js?v=1.3.1';
-import { practiceDoc } from './exam.js?v=1.3.1';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, loadingHTML, errMsg, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, lineChart, localISO, monthName, MESES_CORTOS } from './ui.js?v=1.3.1';
+import { api } from './api.js?v=1.4.0';
+import { state, nav } from './state.js?v=1.4.0';
+import { CONFIG } from './config.js?v=1.4.0';
+import { practiceDoc } from './exam.js?v=1.4.0';
+import { examDateFor, daysUntil, EXAM_LABEL, EXAM_DATE, EXAM_DAYS, nextEvent, fmtRange, fmtLong, planThisWeek, officialOn, timelineHTML, ptsExamen, fmtPts, CICLO } from './proceso.js?v=1.4.0';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, loadingHTML, errMsg, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, lineChart, localISO, monthName, MESES_CORTOS } from './ui.js?v=1.4.0';
 
 const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -18,8 +19,8 @@ function heatLevel(m) { return m <= 0 ? '' : m < 15 ? 'l1' : m < 40 ? 'l2' : m <
 // ---------- Inicio ----------
 export async function dashboard(root) {
   root.innerHTML = loadingHTML('Cargando tu progreso…');
-  let stats = null, attempts = [];
-  try { [stats, attempts] = await Promise.all([api.myStats(), api.listAttempts(state.user.id, 40)]); } catch (e) { toast(errMsg(e), 'bad'); stats = stats || {}; }
+  let stats = null, attempts = [], docs = [];
+  try { [stats, attempts, docs] = await Promise.all([api.myStats(), api.listAttempts(state.user.id, 40), api.listDocs().catch(() => [])]); } catch (e) { toast(errMsg(e), 'bad'); stats = stats || {}; }
   stats = stats || {};
   const p = state.profile || {};
   const name = (p.full_name || '').split(' ')[0] || 'docente';
@@ -33,11 +34,17 @@ export async function dashboard(root) {
   const last = done[0];
   const totalAns = Object.values(stats.by_subarea || {}).reduce((s, x) => s + x.total, 0);
   const totalOk = Object.values(stats.by_subarea || {}).reduce((s, x) => s + x.correct, 0);
-  let countdown = '';
-  if (p.exam_date) {
-    const dd = Math.ceil((new Date(p.exam_date + 'T08:00:00') - new Date()) / 86400000);
-    countdown = `<div class="countdown"><div class="big">${Math.max(0, dd)}</div><div><b>días para tu examen</b><div class="muted small">${fmtDate(p.exam_date + 'T12:00:00')}</div></div></div>`;
-  } else countdown = `<div class="card"><b>¿Cuándo es tu examen?</b><p class="small muted" style="margin:4px 0 8px">Registra la fecha para ver la cuenta regresiva y organizar tu plan.</p><a class="btn sm" href="#/calendario">Configurar mi plan</a></div>`;
+  const ed = examDateFor(p);
+  const dd = Math.max(0, daysUntil(ed.date));
+  const countdown = `<div class="countdown"><div class="big">${dd}</div><div><b>días para tu examen</b><div class="muted small">${ed.official ? 'Fecha oficial: ' + EXAM_LABEL : esc(fmtLong(ed.date)) + ' (fecha de tu plan)'}</div>${ed.custom ? `<button class="cd-link" id="useoff">Usar la fecha oficial: ${EXAM_LABEL}</button>` : ''}</div></div>`;
+  const nx = nextEvent();
+  let pw = null; try { pw = await planThisWeek(p, docs); } catch (e) { }
+  const weekLine = pw ? `<b>Semana ${pw.week.n} de ${pw.plan.N}:</b> ${esc(pw.week.title)}${pw.week.tramites.length ? ' · <span class="chip gold">Trámite</span>' : ''}` : '';
+  const procCard = `<div class="card proc-card" style="margin-top:16px"><div class="proc-main"><span class="chip gold">Proceso de admisión ${CICLO}</span>
+      <h3>${nx ? `${nx.from <= localISO() ? 'En curso' : 'Próximo'}: ${esc(nx.k === 'examen' ? 'el examen' : nx.label.charAt(0).toLowerCase() + nx.label.slice(1))}` : 'Calendario oficial'}</h3>
+      <p class="small muted" style="margin:0">${nx ? `${esc(fmtRange(nx.from, nx.to))}${daysUntil(nx.from) > 0 ? ' · faltan ' + daysUntil(nx.from) + ' días' : ''}` : ''}</p>
+      ${weekLine ? `<p class="small" style="margin:8px 0 0">${weekLine}</p>` : ''}</div>
+      <div class="row proc-actions"><a class="btn sm" href="#/proceso">Fechas y requisitos</a><a class="btn sm" href="#/proceso/puntaje">Calculadora de puntaje</a><a class="btn sm primary" href="#/proceso/plan">Mi plan de esta semana</a></div></div>`;
   // mapa de calor de 18 semanas
   const start = new Date(); start.setDate(start.getDate() - (17 * 7 + start.getDay()));
   let heat = '';
@@ -52,15 +59,16 @@ export async function dashboard(root) {
     <div class="card stat"><div class="label">Racha</div><div class="value">${streak(set)} días</div><div class="sub">de estudio seguidos</div></div>
     <div class="card stat"><div class="label">Hoy</div><div class="value">${Math.round(today.minutes || 0)}/${goal} min</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, pct(today.minutes || 0, goal))}%"></i></div></div>
   </div>
+  ${procCard}
   <div class="grid g4" style="margin-top:16px">
     <a class="action-tile gold" href="#/examen"><span class="ic">90</span><b>Simulacro completo</b><span>90 reactivos · 4 horas · modo seguro</span></a>
     <a class="action-tile" href="#/practica"><span class="ic">✓</span><b>Práctica guiada</b><span>Retroalimentación inmediata por subárea</span></a>
-    <a class="action-tile" href="#/estudio"><span class="ic">≡</span><b>Fichas de estudio</b><span>Los 29 documentos de la bibliografía</span></a>
+    <a class="action-tile" href="#/estudio"><span class="ic">≡</span><b>Fichas de estudio</b><span>Los ${docs.filter(d => d.num).length || 29} documentos de la bibliografía</span></a>
     <a class="action-tile" href="#/guia"><span class="ic">?</span><b>Cómo es el examen</b><span>Estructura, formatos y reglas</span></a>
   </div>
   <div class="grid g3" style="margin-top:16px">
     <div class="card stat"><div class="label">Último resultado</div><div class="value">${last ? Math.round(last.score) + '%' : '—'}</div><div class="sub">${last ? `${esc(MODES[last.mode])} · ${fmtTime(last.elapsed_sec)} · ${fmtDate(last.started_at)}` : 'Aún no presentas ningún intento'}</div></div>
-    <div class="card stat"><div class="label">Mejor simulacro</div><div class="value">${sims.length ? Math.round(Math.max(...sims.map(a => +a.score))) + '%' : '—'}</div><div class="sub">${sims.length} simulacros completos</div></div>
+    <div class="card stat"><div class="label">Mejor simulacro</div><div class="value">${sims.length ? Math.round(Math.max(...sims.map(a => +a.score))) + '%' : '—'}</div><div class="sub">${sims.length ? `≈ ${fmtPts(ptsExamen(Math.max(...sims.map(a => +a.score))))} de 30 puntos · ` : ''}${sims.length} simulacros completos</div></div>
     <div class="card stat"><div class="label">Aciertos acumulados</div><div class="value">${pct(totalOk, totalAns)}%</div><div class="sub">${totalOk} de ${totalAns} reactivos · ${stats.seen_total || 0} de ${stats.bank_total || 0} del banco vistos</div></div>
   </div>
   <div class="grid g2" style="margin-top:16px">
@@ -70,6 +78,8 @@ export async function dashboard(root) {
   <div class="card" style="margin-top:16px"><div class="card-head"><h3>Constancia de estudio (últimas 18 semanas)</h3><a class="small" href="#/calendario">Ver calendario</a></div>
     <div style="overflow-x:auto"><div class="heat">${heat}</div></div>
     <div class="legend" style="margin-top:8px">Menos <i style="background:#e8edf3"></i><i style="background:#b9d3ec"></i><i style="background:#6fa1d1"></i><i style="background:#2a63a0"></i><i style="background:#163a5f"></i> Más</div></div>`;
+  const uo = root.querySelector('#useoff');
+  if (uo) uo.onclick = async () => { try { state.profile = await api.updateProfile(state.user.id, { exam_date: EXAM_DATE }); toast('Listo: tu cuenta regresiva usa la fecha oficial.', 'ok'); dashboard(root); } catch (e) { toast(errMsg(e), 'bad'); } };
 }
 
 // ---------- Estudio ----------
@@ -83,6 +93,7 @@ export async function studyList(root) {
   const read = docs.filter(d => pm[d.id]).length;
   root.innerHTML = `<div class="page-head"><div><div class="crumb">Estudio</div><h1>Fichas de estudio</h1><p class="muted">Ideas clave de cada documento de la bibliografía, cómo aparecen en los casos y las trampas más comunes.</p></div>
     <div class="row"><span class="chip ok">${read} de ${docs.length} estudiados</span><a class="btn" href="#/guia">Cómo es el examen</a></div></div>
+    <a class="proc-strip" href="#/proceso"><span class="chip gold">Nuevo</span><span><b>Proceso de admisión ${CICLO}:</b> fechas oficiales, requisitos, calculadora de puntaje y plan de estudio rumbo al ${EXAM_LABEL}.</span><span class="go">Ver →</span></a>
     <div class="tabs" id="gt"><button class="on" data-g="all">Todos</button>${Object.keys(SUBAREAS).map(k => `<button data-g="${k}">${k}</button>`).join('')}</div>
     <div id="dl"></div>`;
   const show = (g) => {
@@ -130,7 +141,8 @@ export async function studyDoc(root, id) {
 
 // ---------- Guía del examen ----------
 export function examGuide(root) {
-  root.innerHTML = `<div class="page-head"><div><div class="crumb">Estudio</div><h1>Cómo es el examen</h1><p class="muted">Basado en la Guía de apoyo de USICAMM para Educación Primaria, ciclo 2026-2027.</p></div><a class="btn primary" href="#/examen">Presentar un simulacro</a></div>
+  root.innerHTML = `<div class="page-head"><div><div class="crumb">Estudio</div><h1>Cómo es el examen</h1><p class="muted">Basado en la Guía de apoyo de USICAMM para Educación Primaria (ciclo 2026-2027), vigente mientras se publica la del ciclo ${CICLO}.</p></div><a class="btn primary" href="#/examen">Presentar un simulacro</a></div>
+  <div class="notice info small" style="margin-bottom:16px">El examen del proceso ${CICLO} será el <b>${EXAM_LABEL}</b>, en línea. El nuevo Acuerdo mantiene el examen con un valor de 30 de 100 puntos y sigue desempatando por Área 1, 2 y 3. La USICAMM aún no publica la guía de Primaria ${CICLO}; cuando salga revisaremos áreas, subáreas y bibliografía. <a href="#/proceso">Ver el proceso completo</a></div>
   <div class="grid g4">
     <div class="card stat"><div class="label">Reactivos</div><div class="value">90</div><div class="sub">opción múltiple</div></div>
     <div class="card stat"><div class="label">Opciones</div><div class="value">3</div><div class="sub">solo una correcta</div></div>
@@ -164,6 +176,7 @@ export async function calendarView(root) {
   try { [stats, attempts] = await Promise.all([api.myStats(), api.listAttempts(state.user.id, 300)]); } catch (e) { root.innerHTML = `<div class="card">${esc(errMsg(e))}</div>`; return; }
   const p = state.profile;
   const byDay = Object.fromEntries((stats?.days || []).map(d => [d.day, d]));
+  let examDay = examDateFor(p).date;
   let cur = new Date(); cur.setDate(1);
   const draw = () => {
     const y = cur.getFullYear(), m = cur.getMonth();
@@ -176,8 +189,10 @@ export async function calendarView(root) {
       const dt = new Date(y, m, d), k = localISO(dt), info = byDay[k];
       const mins = +(info?.minutes || 0); monthMin += mins; monthQ += +(info?.questions || 0); if (mins > 0 || +(info?.questions || 0) > 0) monthDays++;
       const planned = (p.study_days || []).includes(dt.getDay());
-      const exam = p.exam_date === k;
-      cells += `<div class="day ${heatLevel(mins)} ${k === todayK ? 'today' : ''} ${planned ? 'planned' : ''} ${exam ? 'exam' : ''}" data-k="${k}"><span class="n">${d}</span>${exam ? '<span class="chip bad">Examen</span>' : ''}${mins ? `<span class="m">${Math.round(mins)} min</span>` : ''}${info?.questions ? `<span class="m">${info.questions} reactivos</span>` : ''}<span class="dot"></span></div>`;
+      const exam = examDay === k || EXAM_DAYS.includes(k);
+      const offs = officialOn(k).filter(ev => ev.k !== 'examen');
+      const ofl = offs.map(ev => ev.from === k ? (ev.to && ev.to !== ev.from ? 'Inicia ' : '') + ev.short : ev.to === k ? 'Termina ' + ev.short : '').filter(Boolean);
+      cells += `<div class="day ${heatLevel(mins)} ${k === todayK ? 'today' : ''} ${planned ? 'planned' : ''} ${exam ? 'exam' : ''} ${offs.length ? 'offi' : ''}" data-k="${k}" title="${esc(officialOn(k).map(ev => ev.label).join(' · '))}"><span class="n">${d}</span>${exam ? '<span class="chip bad">Examen</span>' : ''}${ofl.map(t => `<span class="of">${esc(t)}</span>`).join('')}${mins ? `<span class="m">${Math.round(mins)} min</span>` : ''}${info?.questions ? `<span class="m">${info.questions} reactivos</span>` : ''}<span class="dot"></span></div>`;
     }
     root.querySelector('#cal').innerHTML = cells;
     root.querySelector('#mt').textContent = `${monthName(m)} ${y}`;
@@ -188,7 +203,8 @@ export async function calendarView(root) {
     const info = byDay[k];
     const list = (attempts || []).filter(a => localISO(a.started_at) === k);
     const box = root.querySelector('#dd');
-    box.innerHTML = `<h3>${fmtDate(k + 'T12:00')}</h3>${info ? `<p>${Math.round(info.minutes)} minutos · ${info.questions} reactivos · ${pct(info.correct, info.questions)}% de aciertos</p>` : '<p class="muted">Sin actividad registrada.</p>'}
+    const evs = officialOn(k);
+    box.innerHTML = `<h3>${fmtDate(k + 'T12:00')}</h3>${evs.length ? `<div class="notice info small" style="margin-bottom:10px">${evs.map(ev => `<b>${esc(ev.label)}</b> · ${esc(fmtRange(ev.from, ev.to))}`).join('<br>')}</div>` : ''}${info ? `<p>${Math.round(info.minutes)} minutos · ${info.questions} reactivos · ${pct(info.correct, info.questions)}% de aciertos</p>` : '<p class="muted">Sin actividad registrada.</p>'}
       ${list.length ? `<div class="table-wrap"><table class="t"><tr><th>Actividad</th><th>Aciertos</th><th>Tiempo</th></tr>${list.map(a => `<tr class="click" data-id="${a.id}"><td>${esc(MODES[a.mode])}</td><td>${a.score != null ? Math.round(a.score) + '%' : '—'}</td><td>${fmtTime(a.elapsed_sec)}</td></tr>`).join('')}</table></div>` : ''}`;
     box.querySelectorAll('tr[data-id]').forEach(r => r.onclick = () => nav('#/resultado/' + r.dataset.id));
   };
@@ -196,18 +212,20 @@ export async function calendarView(root) {
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
     <div class="card"><div class="row between" style="margin-bottom:12px"><button class="btn sm" id="pm">←</button><h3 id="mt" style="margin:0;text-transform:capitalize"></h3><button class="btn sm" id="nm">→</button></div>
       <div class="cal" id="cal"></div><p class="small muted" style="margin-top:10px" id="msum"></p>
-      <div class="legend">Días planeados <i style="background:#fbf8f1;border:1px solid #dfe5ec"></i> · Intensidad <i style="background:#b9d3ec"></i><i style="background:#6fa1d1"></i><i style="background:#2a63a0"></i><i style="background:#163a5f"></i></div></div>
+      <div class="legend" style="flex-wrap:wrap">Días planeados <i style="background:#fbf8f1;border:1px solid #dfe5ec"></i> · Fechas oficiales <i style="background:#fff;border:1px solid #dfe5ec;box-shadow:inset 0 3px 0 #b07d1f"></i> · Intensidad <i style="background:#b9d3ec"></i><i style="background:#6fa1d1"></i><i style="background:#2a63a0"></i><i style="background:#163a5f"></i></div></div>
     <div class="stack"><div class="card"><h3>Mi plan</h3>
-      <label class="field"><span>Fecha de mi examen</span><input type="date" id="ed" value="${esc(p.exam_date || '')}"></label>
+      <label class="field"><span>Fecha de mi examen</span><input type="date" id="ed" value="${esc(p.exam_date || EXAM_DATE)}"></label>
+      <p class="small muted" style="margin:-6px 0 12px">Fecha oficial: ${EXAM_LABEL}. La USICAMM te asigna uno de los dos días.</p>
       <label class="field"><span>Meta diaria (minutos)</span><input type="number" id="gm" min="5" max="600" step="5" value="${p.daily_goal_min || 60}"></label>
       <div class="field"><span style="display:block;font-weight:600;margin-bottom:6px">Días de estudio</span><div class="toggle-days">${DOW.map((d, i) => `<label><input type="checkbox" value="${i}" ${(p.study_days || []).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
       <button class="btn primary" id="save">Guardar plan</button></div>
-      <div class="card" id="dd"><h3>Detalle del día</h3><p class="muted small">Selecciona un día del calendario.</p></div></div></div>`;
+      <div class="card" id="dd"><h3>Detalle del día</h3><p class="muted small">Selecciona un día del calendario.</p></div>
+      <div class="card"><div class="card-head"><h3>Calendario oficial ${CICLO}</h3><a class="small" href="#/proceso">Ver todo</a></div>${timelineHTML(true)}</div></div></div>`;
   root.querySelector('#pm').onclick = () => { cur.setMonth(cur.getMonth() - 1); draw(); };
   root.querySelector('#nm').onclick = () => { cur.setMonth(cur.getMonth() + 1); draw(); };
   root.querySelector('#save').onclick = async () => {
     const fields = { exam_date: root.querySelector('#ed').value || null, daily_goal_min: Math.max(5, Math.min(600, +root.querySelector('#gm').value || 60)), study_days: [...root.querySelectorAll('.toggle-days input:checked')].map(x => +x.value) };
-    try { state.profile = await api.updateProfile(state.user.id, fields); toast('Plan guardado.', 'ok'); draw(); } catch (e) { toast(errMsg(e), 'bad'); }
+    try { state.profile = await api.updateProfile(state.user.id, fields); examDay = examDateFor(state.profile).date; toast('Plan guardado.', 'ok'); draw(); } catch (e) { toast(errMsg(e), 'bad'); }
   };
   draw(); dayDetail(localISO());
 }
