@@ -1,5 +1,5 @@
 // Capa de acceso a datos (Supabase). Toda la lógica sensible se valida en el servidor.
-import { CONFIG } from './config.js?v=1.4.0';
+import { CONFIG } from './config.js?v=1.4.1';
 
 let sb = null;
 function client() {

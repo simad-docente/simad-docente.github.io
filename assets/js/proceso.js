@@ -1,8 +1,8 @@
 // Proceso de admisión 2027-2028: calendario oficial, requisitos, calculadora de puntaje y plan de estudio.
 // Fuente: Acuerdo de admisión en educación básica, ciclo escolar 2027-2028 (USICAMM, 17 de noviembre de 2026).
-import { api } from './api.js?v=1.4.0';
-import { state } from './state.js?v=1.4.0';
-import { esc, toast, loadingHTML, errMsg, confirmDialog, SUBAREAS, localISO, monthName } from './ui.js?v=1.4.0';
+import { api } from './api.js?v=1.4.1';
+import { state } from './state.js?v=1.4.1';
+import { esc, toast, loadingHTML, errMsg, confirmDialog, SUBAREAS, localISO, monthName } from './ui.js?v=1.4.1';
 
 export const CICLO = '2027-2028';
 export const EXAM_DATE = '2027-05-15';

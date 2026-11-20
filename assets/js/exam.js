@@ -1,10 +1,10 @@
 // Motor de examen (simulacro), práctica y resultados
-import { api } from './api.js?v=1.4.0';
-import { state, nav } from './state.js?v=1.4.0';
-import { CONFIG } from './config.js?v=1.4.0';
-import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.4.0';
-import { ptsExamen, fmtPts } from './proceso.js?v=1.4.0';
-import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.4.0';
+import { api } from './api.js?v=1.4.1';
+import { state, nav } from './state.js?v=1.4.1';
+import { CONFIG } from './config.js?v=1.4.1';
+import { Proctor, INCIDENT_LABELS, ENVIRONMENT_RULES } from './secure.js?v=1.4.1';
+import { ptsExamen, fmtPts } from './proceso.js?v=1.4.1';
+import { esc, paras, fmtTime, fmtDur, fmtDate, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, AREAS, FORMATS, MODES, STATUS, pct, levelClass, ring, deviceLabel } from './ui.js?v=1.4.1';
 
 // ---------- Render de un reactivo ----------
 export function questionHTML(it, { chosen = null, result = null, disabled = false } = {}) {

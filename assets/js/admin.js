@@ -1,8 +1,8 @@
 // Panel de administración
-import { api } from './api.js?v=1.4.0';
-import { state } from './state.js?v=1.4.0';
-import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.4.0';
-import { CONFIG } from './config.js?v=1.4.0';
+import { api } from './api.js?v=1.4.1';
+import { state } from './state.js?v=1.4.1';
+import { esc, fmtDate, fmtTime, toast, modal, confirmDialog, loadingHTML, errMsg, errCode, SUBAREAS, FORMATS, plainLetters, pct, money, payLabel, payMethod } from './ui.js?v=1.4.1';
+import { CONFIG } from './config.js?v=1.4.1';
 
 const TABS = [['resumen', 'Resumen'], ['usuarios', 'Usuarios'], ['correos', 'Acceso'], ['pagos', 'Pagos'], ['equipos', 'Equipos'], ['reportes', 'Reportes de fallas'], ['errores', 'Errores técnicos'], ['contenido', 'Contenido']];
 const USTATUS = { pending: ['Pendiente', 'warn'], approved: ['Aprobado', 'ok'], blocked: ['Bloqueado', 'bad'] };
@@ -138,16 +138,6 @@ async function bugs(box) {
     actions: [{ label: 'Cancelar', value: null }, { label: 'Guardar', cls: 'primary', onClick: async (el) => { await api.admin.updateBug(b.id, el.querySelector('#bs').value, el.querySelector('#bn').value.trim()); toast('Reporte actualizado.', 'ok'); adminView(box.parentElement, 'reportes'); } }] });
   box.innerHTML = `<div class="tabs" id="bt"><button class="on" data-f="open">Abiertos</button><button data-f="resuelto">Resueltos</button><button data-f="descartado">Descartados</button><button data-f="all">Todos (${list.length})</button></div><div id="bl"></div>`;
   box.querySelectorAll('#bt button').forEach(b => b.onclick = () => { box.querySelectorAll('#bt button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(b.dataset.f); });
-  box.querySelectorAll('[data-b]').forEach(btn => btn.onclick = async () => {
-    const b = binds.find(x => x.user_id === btn.dataset.u);
-    try {
-      if (btn.dataset.b === 'liberar') {
-        if (!await confirmDialog('Liberar dispositivo', `${b.email || 'Esta cuenta'} podrá entrar desde un dispositivo nuevo, que quedará como su dispositivo vinculado. El anterior ya no podrá usarse.`, 'Liberar')) return;
-        await api.admin.releaseBinding(b.user_id); await api.admin.resetDevice(b.user_id); toast('Dispositivo liberado.', 'ok');
-      } else { await api.admin.bindIgnore(b.user_id); toast('Marcado como revisado.', 'ok'); }
-      adminView(box.parentElement, 'equipos');
-    } catch (e) { toast(errMsg(e), 'bad'); }
-  });
   render('open');
 }
 
@@ -252,6 +242,16 @@ async function devices(box) {
   box.innerHTML = bindHTML + `<div class="notice info small" style="margin-bottom:12px">Cada computadora queda registrada con la primera cuenta que entra en ella. Si alguien intenta usar otra cuenta en ese equipo, se le pide cambiar a su cuenta registrada y aparece un aviso aquí. Si es una computadora compartida por dos personas reales, usa <b>Permitir en ese equipo</b>.</div>
     <div class="tabs" id="dt"><button class="on" data-f="open">Pendientes (${list.filter(c => !c.resolved).length})</button><button data-f="all">Todos (${list.length})</button></div><div id="dl"></div>`;
   box.querySelectorAll('#dt button').forEach(b => b.onclick = () => { box.querySelectorAll('#dt button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(b.dataset.f); });
+  box.querySelectorAll('[data-b]').forEach(btn => btn.onclick = async () => {
+    const b = binds.find(x => x.user_id === btn.dataset.u);
+    try {
+      if (btn.dataset.b === 'liberar') {
+        if (!await confirmDialog('Liberar dispositivo', `${b.email || 'Esta cuenta'} podrá entrar desde un dispositivo nuevo, que quedará como su dispositivo vinculado. El anterior ya no podrá usarse.`, 'Liberar')) return;
+        await api.admin.releaseBinding(b.user_id); await api.admin.resetDevice(b.user_id); toast('Dispositivo liberado.', 'ok');
+      } else { await api.admin.bindIgnore(b.user_id); toast('Marcado como revisado.', 'ok'); }
+      adminView(box.parentElement, 'equipos');
+    } catch (e) { toast(errMsg(e), 'bad'); }
+  });
   render('open');
 }
 
